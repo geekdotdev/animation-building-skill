@@ -1,6 +1,26 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Small helpers shared by the anime.js renderer's tools (test/build-site.mjs and export/export.mjs).
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+
+// A watermark's `author` fallback (core/descriptor.md section 3.3): the name that would actually be used if a
+// commit were made right now on this machine — the same resolution `git commit` itself uses: global or local
+// config if set, else `GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME`, else the OS account's own real name (`username@
+// hostname`). `git config --global user.name` alone only checks the first of these, so it can (and, on the
+// machine this was written on, did) miss a name git would still put on a commit. Undefined if none resolve.
+// The renderer has no filesystem access, so a Node-side tool resolves this and passes it in as
+// `env.watermarkAuthor`; the descriptor's own `author` wins over it.
+export function gitAuthor() {
+  try {
+    const ident = execFileSync("git", ["var", "GIT_AUTHOR_IDENT"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const name = /^(.*?)\s*<[^>]*>/.exec(ident)?.[1];
+    return name || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // The diagram block of a markup file (a page or the diagram itself): from `<div class="diagram"` to its matching `</div>`. The block
 // holds other divs (the log, the footer), so the closing tag is found by counting opens and closes.

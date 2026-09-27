@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Descriptor interpreter for anime.js v3 and inline SVG: the shared renderer described by
 // core/descriptor.md section 9. It reads a descriptor (a data-only module) and animates a diagram
 // whose markup already exists, so geometry stays in the SVG.
@@ -19,9 +21,21 @@
 // datums behave exactly as they do for a user. `modes.toggle` puts a switch beside Replay.
 // `env.mode` overrides the descriptor's default (a host decision, e.g. a test URL).
 //
+// Composite crawlers (core/ontology.md, Composite crawler; core/descriptor.md section 3.1): a move or
+// divergence names `asset` (one) or `assets` (two or more, travelling together as one crawler, `spacing`
+// diagram units apart, default 11), optionally in a bounding box via `box: true`). No helper change is
+// needed: each icon is drawn exactly as it would be alone, one call to createCrawlerElement per name.
+//
 // Pace (the descriptor's `pace`, overridden by `env.pace`): a factor on every duration and delay. 2 is twice as
 // slow, 0.5 twice as fast. It scales moves, reveals, glows, docking, `after` delays, `repeat` intervals, `delay`
 // conditions, the crawler fade-out and the simulated press, all by the same factor.
+//
+// Local storage (core/ontology.md "Local storage"; core/descriptor.md section 3.2): each node accumulates the
+// assets it holds — added when one arrives there (any channel ending at that node) or a `store` action names
+// it — tracked whether or not the descriptor's `strict` is set (that only affects the validator's check, run
+// before this ever loads). A node's `showLocalStorage` displays its current holdings as small icons, `overlay`
+// centred on the node's own box or `adjacent` in a small bounding box at an offset from it. Storage only grows;
+// nothing is removed on send.
 //
 // What this renderer does NOT do, by design (core/descriptor.md section 5): it doesn't validate
 // lanes, phases or overlays (run the validator first), and it doesn't apply overlay precedence.
@@ -51,6 +65,9 @@ export function createInterpreter(d, env) {
   // ---- names to selectors and durations ------------------------------------
   const sel = (name) => { const e = chans.get(name) ?? nodes.get(name); return id(e.element); };
   const selWithLabel = (name) => { const c = chans.get(name); return c?.label ? [id(c.element), id(c.label.element)] : [sel(name)]; };
+  // What a move, divergence or arrival condition carries: `assets` (a composite, in order) or one `asset`.
+  const assetsOf = (x) => x.assets ?? [x.asset];
+  const assetKey = (x) => assetsOf(x).join('+');
   // Pace: one factor on every time in the run (2 is twice as slow, 0.5 twice as fast). It multiplies every
   // duration and delay by the same amount, so relationships between them (two legs of equal length that
   // finish together) are unchanged. `env.pace` overrides the descriptor's `pace`.
@@ -86,11 +103,12 @@ export function createInterpreter(d, env) {
 
   // ---- conditions ----------------------------------------------------------
   const leafKey = (c, datum) =>
-    c.arrival ? `arrival:${c.arrival.channel}/${c.arrival.direction}/${c.arrival.asset}`
+    c.arrival ? `arrival:${c.arrival.channel}/${c.arrival.direction}/${assetKey(c.arrival)}`
       : c.gesture !== undefined ? `gesture:${c.gesture}`
-        : c.completed !== undefined ? `completed:${c.completed}`
-          : c.delay !== undefined ? `delay:${datum}`
-            : c.start ? 'start' : null;
+        : c.channel !== undefined ? `authenticated:${c.channel}`
+          : c.completed !== undefined ? `completed:${c.completed}`
+            : c.delay !== undefined ? `delay:${datum}`
+              : c.start ? 'start' : null;
   const evalCond = (c, datum) => {
     if (!c) return true;
     if (c.all) return c.all.every((x) => evalCond(x, datum));
@@ -224,9 +242,11 @@ export function createInterpreter(d, env) {
     else if (a.reveal) reveal(a.reveal, next);
     else if (a.hide) fade(a.hide, dur(a.duration, 600), next);
     else if (a.acknowledge) glow(a.acknowledge.targets, dur(a.acknowledge.duration, ACK()), next);
-    else if (a.move) { sendBead(a.move.channel, a.move.direction, a.move.asset, lane, a.move.duration); next(); }
+    else if (a.move) { sendBead(a.move.channel, a.move.direction, assetsOf(a.move), lane, a.move.duration, a.move.box, a.move.spacing); next(); }
     else if (a.dock) dock(a, next);
-    else if (a.divergence) { for (const b of a.divergence.branches) sendBead(b.channel, b.direction, a.divergence.asset, lane, b.duration); next(); }
+    else if (a.divergence) { for (const b of a.divergence.branches) sendBead(b.channel, b.direction, assetsOf(a.divergence), lane, b.duration, a.divergence.box, a.divergence.spacing); next(); }
+    // Local storage (core/descriptor.md section 3.2): an instant fact, not an animation.
+    else if (a.store) { storeAt(a.store.at, assetsOf(a.store)); next(); }
     else if (a.repeat) {
       const g = gen, tick = () => { if (g === gen) run(a.repeat.do, 0, lane); };
       tick(); const h = setInterval(tick, dur(a.repeat.every)); timers.add(h); next();
@@ -253,7 +273,16 @@ export function createInterpreter(d, env) {
     for (const s of targets) { anime.remove(s); doc.querySelector(s).classList.add('diagram-glow'); }
     anime({
       targets, stroke: ['#999', '#ff9f1c', '#999'], strokeWidth: [1.5, 3, 1.5], duration, easing: 'easeOutQuad',
-      complete: guard(() => { for (const s of targets) doc.querySelector(s).classList.remove('diagram-glow'); done(); }),
+      complete: guard(() => {
+        for (const s of targets) doc.querySelector(s).classList.remove('diagram-glow');
+        // A channel's authenticated state (core/ontology.md, Channel): this glow completing sets it true, for
+        // any target that's a channel declaring `authenticated`. Nothing reacts to it unless a datum's `when`
+        // names it (core/descriptor.md section 2) — declaring it doesn't gate anything by itself.
+        let authChanged = false;
+        for (const n of names) { const c = chans.get(n); if (c?.authenticated !== undefined && !leaves.has(`authenticated:${n}`)) { leaves.add(`authenticated:${n}`); authChanged = true; } }
+        if (authChanged) checkDatums();
+        done();
+      }),
     });
   }
   function dock(a, done) {
@@ -264,32 +293,152 @@ export function createInterpreter(d, env) {
     }), dur(a.duration, 900)); // the descriptor's duration; a helper that ignores a fourth argument keeps its own
   }
 
-  function sendBead(channel, direction, asset, lane, duration) {
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  // One icon per asset, `spacing` diagram units apart, centred on (0, 0). Shared by a moving composite
+  // crawler and the stationary local-storage display: both are just "a cluster of icons".
+  function layoutIcons(assetList, spacing) {
+    const start = -((assetList.length - 1) * spacing) / 2;
+    return assetList.map((type, i) => {
+      const el = createCrawlerElement(type);
+      el.classList.remove('diagram-crawler'); // the group is the crawler (or the display); sub-icons are its parts
+      el.setAttribute('transform', `translate(${start + i * spacing}, 0)`);
+      return el;
+    });
+  }
+  // A light rect sized to enclose `count` icons `spacing` apart, centred on (0, 0).
+  function clusterBox(count, spacing, pad = 6) {
+    const start = -((count - 1) * spacing) / 2, w = (count - 1) * spacing + 2 * pad, h = 2 * pad + 8;
+    const rect = doc.createElementNS(SVGNS, 'rect');
+    rect.setAttribute('class', 'diagram-crawler-box');
+    rect.setAttribute('x', String(start - pad)); rect.setAttribute('y', String(-h / 2));
+    rect.setAttribute('width', String(w)); rect.setAttribute('height', String(h)); rect.setAttribute('rx', '3');
+    return rect;
+  }
+  // A single asset is drawn exactly as before: createCrawlerElement's own element, unwrapped. A composite
+  // (two or more) is a small <g> holding one icon per asset, that moves as one unit — the same way this
+  // renderer already moves a compound icon (a lock-and-key drawn as one <g>). `box` adds the cluster box.
+  function buildCrawler(assetList, box, spacing = 11) {
+    if (assetList.length === 1) return createCrawlerElement(assetList[0]);
+    const group = doc.createElementNS(SVGNS, 'g');
+    group.setAttribute('class', 'diagram-crawler diagram-crawler-composite');
+    group.style.opacity = 1;
+    if (box) group.appendChild(clusterBox(assetList.length, spacing));
+    layoutIcons(assetList, spacing).forEach((el) => group.appendChild(el));
+    return group;
+  }
+  function sendBead(channel, direction, assetList, lane, duration, box, spacing) {
     const g = gen, c = chans.get(channel), path = id(c.element);
-    const bead = createCrawlerElement(asset);
+    const bead = buildCrawler(assetList, box, spacing);
     doc.querySelector(svgSel).appendChild(bead);
     const p = anime.path(path);
-    emit('move', { channel, direction, asset, lane });
+    emit('move', { channel, direction, assets: assetList, lane });
     anime({
       targets: bead, translateX: p('x'), translateY: p('y'), easing: 'linear', duration: dur(duration, c.duration),
       direction: direction === 'forward' ? 'normal' : 'reverse',
       complete: () => {
         if (g !== gen) { bead.remove(); return; }
         anime({ targets: bead, opacity: [1, 0], duration: scaled(350), easing: 'easeOutQuad', complete: () => bead.remove() });
-        arrived(channel, direction, asset, lane);
+        arrived(channel, direction, assetList, lane);
       },
     });
   }
   // An arrival fires the datums that wait for it (from any lane) and the rules that wait for it in the
-  // lane that sent it: two lanes can send the same asset on the same channel without colliding.
-  function arrived(channel, direction, asset, lane) {
-    emit('arrival', { channel, direction, asset, lane });
-    leaves.add(`arrival:${channel}/${direction}/${asset}`);
+  // lane that sent it: two lanes can send the same asset(s) on the same channel without colliding.
+  function arrived(channel, direction, assetList, lane) {
+    emit('arrival', { channel, direction, assets: assetList, lane });
+    const key = assetList.join('+');
+    leaves.add(`arrival:${channel}/${direction}/${key}`);
+    const c = chans.get(channel);
+    storeAt(direction === 'forward' ? c.b : c.a, assetList); // "received from another channel"
     for (const r of rules) {
       const t = r.on.arrival;
-      if (t && r.lane === lane && t.channel === channel && t.direction === direction && t.asset === asset) runRule(r);
+      if (t && r.lane === lane && t.channel === channel && t.direction === direction && assetKey(t) === key) runRule(r);
     }
     checkDatums();
+  }
+
+  // ---- local storage (core/descriptor.md section 3.2) ------------------------
+  // `storage`: node name -> Set of assets it holds (tracked regardless of `strict`, and of display).
+  // `storageGroups`: node name -> its display <g>, created and positioned once its node first gets something
+  // worth showing, then just repopulated. Position is measured from the node's own box, which this renderer
+  // never moves, so it's safe to cache.
+  let storage = {}, storageGroups = {};
+  function storeAt(nodeName, list) {
+    if (!nodeName || !list?.length) return;
+    const s = (storage[nodeName] ||= new Set());
+    let changed = false;
+    for (const a of list) if (!s.has(a)) { s.add(a); changed = true; }
+    if (changed) refreshStorageDisplay(nodeName);
+  }
+  function refreshStorageDisplay(nodeName) {
+    const n = nodes.get(nodeName), cfg = n?.showLocalStorage;
+    if (!cfg) return; // tracked either way; only shown when the descriptor asks
+    let group = storageGroups[nodeName];
+    if (!group) {
+      group = doc.createElementNS(SVGNS, 'g');
+      group.setAttribute('class', `diagram-storage-display diagram-storage-${cfg.position}`);
+      doc.querySelector(svgSel).appendChild(group);
+      const box = doc.querySelector(id(n.element)).getBBox();
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      const x = cfg.position === 'adjacent' ? cx + cfg.offset.x : cx;
+      const y = cfg.position === 'adjacent' ? cy + cfg.offset.y : cy;
+      group.setAttribute('transform', `translate(${x}, ${y})`);
+      storageGroups[nodeName] = group;
+    }
+    while (group.firstChild) group.removeChild(group.firstChild);
+    const list = [...(storage[nodeName] ?? [])];
+    if (!list.length) return; // nothing to show (yet)
+    if (cfg.position === 'adjacent') group.appendChild(clusterBox(list.length, 11));
+    layoutIcons(list, 11).forEach((el) => group.appendChild(el));
+  }
+
+  // ---- watermark (core/descriptor.md section 3.3) -----------------------------
+  // Attribution to the skill and, optionally, the developer. Its box is a zone (no members) named by
+  // `watermark.zone`; the credit lines are injected here, since an author's name from git config isn't
+  // known until the file is served (env.watermarkAuthor, resolved by whichever Node tool built the page).
+  let watermarkGroup = null;
+  function startWatermark() {
+    const w = d.watermark;
+    if (!w) return;
+    const zone = d.zones.find((z) => z.name === w.zone);
+    const rect = doc.querySelector(id(zone.element));
+    const x = parseFloat(rect.getAttribute('x')), y = parseFloat(rect.getAttribute('y'));
+    const width = parseFloat(rect.getAttribute('width')), height = parseFloat(rect.getAttribute('height'));
+    const author = w.author ?? env.watermarkAuthor;
+    const lines = [];
+    // "Coordinated by Claude": Claude authors within a fixed, developer-defined format and rule set
+    // (the ontology, the validator, this interpreter's own contract) — not a free-form "AI-generated"
+    // claim, since the process and its constraints are the skill's, not the model's own invention.
+    if (w.repo !== false) lines.push({ text: 'Coordinated by Claude, built with diagram-animation skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
+    if (author) lines.push({ text: `Authored By: ${author}`, href: w.website });
+    watermarkGroup = doc.createElementNS(SVGNS, 'g');
+    watermarkGroup.setAttribute('class', 'diagram-watermark');
+    const lineHeight = 12, top = y + height / 2 - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((ln, i) => {
+      const text = doc.createElementNS(SVGNS, 'text');
+      text.setAttribute('class', 'diagram-watermark-text');
+      text.setAttribute('x', String(x + width / 2));
+      text.setAttribute('y', String(top + i * lineHeight));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'central');
+      text.textContent = ln.text;
+      if (ln.href) {
+        const a = doc.createElementNS(SVGNS, 'a');
+        a.setAttributeNS('http://www.w3.org/1999/xlink', 'href', ln.href);
+        a.setAttribute('href', ln.href);
+        a.appendChild(text);
+        watermarkGroup.appendChild(a);
+      } else watermarkGroup.appendChild(text);
+    });
+    rect.parentNode.insertBefore(watermarkGroup, rect.nextSibling); // paint order: right after its own box
+    // Permanently static (ontology rule 25): position never changes; only opacity ever animates, once.
+    if (typeof w.fade === 'number') {
+      const g = gen;
+      later(scaled(w.fade * 1000), () => {
+        anime.remove([rect, watermarkGroup]);
+        anime({ targets: [rect, watermarkGroup], opacity: [1, 0], duration: scaled(600), easing: 'easeOutQuad' });
+      });
+    }
   }
 
   // ---- start and reset -------------------------------------------------------
@@ -299,6 +448,9 @@ export function createInterpreter(d, env) {
     cancelSimulated(); simDone = new Set();
     satisfied = new Set(); pending = new Set(); leaves = new Set();
     lanes = Object.fromEntries(d.lanes.map((l) => [l.name, { entered: false, phase: 0, consumed: new Set() }]));
+    for (const g of Object.values(storageGroups)) g.remove();
+    storage = {}; storageGroups = {};
+    if (watermarkGroup) { watermarkGroup.remove(); watermarkGroup = null; }
   }
   function start() {
     initial();
@@ -311,6 +463,7 @@ export function createInterpreter(d, env) {
     }
     refreshClickable();
     checkDatums();
+    startWatermark();
   }
   function reset() {
     gen++;
@@ -320,6 +473,8 @@ export function createInterpreter(d, env) {
     // everything the run can have changed: lines, labels, boxes, volumes, groups, glows, hints, the log
     const all = [...d.nodes.map((n) => id(n.element)), ...d.channels.flatMap((c) => selWithLabel(c.name)), ...d.volumes.map((v) => id(v.element)), ...d.zones.map((z) => id(z.element))];
     for (const s of all) anime.remove(s);
+    // permanently static, but a fade can still leave it at opacity 0: Reset returns it to visible
+    if (d.watermark) { const w = d.zones.find((z) => z.name === d.watermark.zone); if (w) doc.querySelector(id(w.element)).style.opacity = ''; }
     for (const c of d.channels) for (const s of selWithLabel(c.name)) { const el = doc.querySelector(s); if (c.visibility === 'hidden') el.style.opacity = ''; el.classList.remove('diagram-glow'); el.style.stroke = ''; el.style.strokeWidth = ''; }
     for (const n of d.nodes) { const el = doc.querySelector(id(n.element)); el.classList.remove('diagram-glow', 'diagram-clickable'); el.style.stroke = ''; el.style.strokeWidth = ''; if (n.group) anime.set(id(n.element), { opacity: 1 }); }
     doc.querySelector(logSel).innerHTML = '';

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Checks a diagram's markup (and, if given, the stylesheet and helpers) against the markup contract in
 // renderers/anime-svg/markup-contract.md: the structure and names the interpreter reads and writes.
 //
@@ -106,7 +108,13 @@ export function checkMarkup(descriptor, html) {
       if (le && !hasClass(le, "diagram-line-label")) warn("channel-class", `channel ${c.name} label`, 'a channel label needs class="diagram-line-label" (hidden until its line is revealed)');
     }
   }
-  for (const z of descriptor.zones ?? []) { const e = el(z.name, z.element, "zone"); if (e && e.tag !== "rect") warn("element", `zone ${z.name}`, `a zone is drawn as a <rect>, not <${e.tag}>`); }
+  for (const z of descriptor.zones ?? []) {
+    const e = el(z.name, z.element, "zone");
+    if (!e) continue;
+    const isWatermark = descriptor.watermark?.zone === z.name;
+    if (e.tag !== "rect") (isWatermark ? err : warn)("element", `zone ${z.name}`, `a zone is drawn as a <rect>, not <${e.tag}>${isWatermark ? " (the watermark reads its x/y/width/height directly, so it must be a <rect>)" : ""}`);
+    else if (isWatermark) for (const attr of ["x", "y", "width", "height"]) if (e.attrs[attr] === undefined || !/^-?\d/.test(e.attrs[attr])) err("element", `zone ${z.name}`, `the watermark's rect needs a numeric ${attr} attribute`);
+  }
   for (const v of descriptor.volumes ?? []) {
     const e = el(v.name, v.element, "volume"); if (!e) continue;
     if (e.tag !== "g") err("volume", `volume ${v.name}`, `a volume is moved by a transform, so it must be a <g>, not <${e.tag}>`);
@@ -115,12 +123,23 @@ export function checkMarkup(descriptor, html) {
   return out;
 }
 
+// Whether any move, divergence or its consumer condition anywhere in the descriptor declares a composite
+// crawler's optional bounding box (`box: true`).
+function usesCrawlerBox(d) {
+  let found = false;
+  const walk = (list) => { for (const a of list ?? []) { if (a?.move?.box || a?.divergence?.box) found = true; if (a?.repeat) walk(a.repeat.do); } };
+  for (const s of d.sequences ?? []) for (const r of s.rules ?? []) walk(r.do);
+  return found;
+}
+
 // The classes the markup and interpreter rely on must be defined by some rule, and volumes need their
 // transform-origin rule. `css` is the app's stylesheet text.
 export function checkStylesheet(css, descriptor = {}) {
   const out = [], bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const c of REQUIRED_CLASSES) if (!new RegExp(`\\.${c}(?![\\w-])`).test(bare)) out.push({ level: "warning", code: "stylesheet", where: `.${c}`, message: `no rule uses the class .${c}, which the markup or interpreter relies on` });
   if ((descriptor.volumes ?? []).length && !/\[id\^=["']?dg-vol-/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: "volumes", message: 'no rule sets [id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }, so docked volumes scale from the wrong point' });
+  if (usesCrawlerBox(descriptor) && !/\.diagram-crawler-box(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-crawler-box", message: "a composite crawler uses box: true, but no rule styles .diagram-crawler-box, so it will render unstyled (default black fill)" });
+  if (descriptor.watermark && !/\.diagram-watermark-text(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-watermark-text", message: "the descriptor has a watermark, but no rule styles .diagram-watermark-text, so its credit lines will render in the SVG's default text style" });
   return out;
 }
 

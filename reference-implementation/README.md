@@ -47,3 +47,7 @@ It implements the contract of `core/descriptor.md` §9, including the interactio
 ## `renderers/anime-svg/export/`
 
 `export.mjs` exports a diagram to a delivery target as one self-contained file (a fragment to paste into a host page, or a full page), following `core/delivery-targets.md`. It validates the descriptor first, applies a target profile (presentation parameters with reasons, behavior, packaging, asset loading), and checks its own output. See `export/README.md`.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

@@ -23,3 +23,7 @@ The structure and ids the interpreter needs from a diagram file are in `markup-c
 ## Measuring in the browser
 
 - Measure rendered geometry with `getBoundingClientRect()` on the elements by id, not `getBBox()` (which is in SVG units and ignores transforms).
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

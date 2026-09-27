@@ -54,3 +54,7 @@ Requests the user actually made while building `nats-nkey-demo-priv`'s labs, quo
 |---|---|
 | "Lab 4 tab should indicate "Pure SPA Login" while lab 5 tab should indicate "BFF-initiated SPA Login" or similar" | Content, not animation: the tab label, the page heading and the references were changed together. |
 | "Keep "PoP Zero Permission" in both because thats what makes them novel" | A stated reason is a requirement. It constrained the names. |
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

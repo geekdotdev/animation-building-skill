@@ -92,3 +92,7 @@ document.querySelectorAll('#diagram-<lab> svg .diagram-crawler').length   // exp
 
 - **`no matches found` on a `grep --include=*.go`.** zsh expands an unquoted glob before grep sees it. Quote it, or use `--exclude-dir`.
 - **A variable holding several arguments is passed as one.** zsh doesn't split an unquoted variable. Pass the arguments explicitly, or use an array. This made a test run produce no summary at all until the cause was found.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

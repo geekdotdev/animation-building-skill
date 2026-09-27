@@ -32,3 +32,7 @@ The interpreter was checked once against example diagram 5's hand-written script
 - The two handshakes logged at the same millisecond in both runs.
 - Differences by design: the browser node is clickable only while a phase arms it and its step isn't consumed (the script left it clickable once ready), a datum counts as satisfied for guards once its acknowledgement completes, and the delegation to auth-callout waits for auth-callout to be authenticated, which the script never checked (FINDING F14).
 - Not compared: crawler positions frame by frame, glow appearance, and the payload traffic after the last click.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

@@ -54,15 +54,16 @@ Every `element` in the descriptor (a node, channel, zone, volume, or a channel's
 ## 3. What the interpreter adds at run time
 
 So the file needn't and mustn't set these itself:
-- **Crawlers**, one SVG element per asset in flight, appended to the `<svg>` with class `diagram-crawler`.
+- **Crawlers**, one SVG element per asset in flight, appended to the `<svg>` with class `diagram-crawler`. A **composite crawler** (a move or divergence with `assets`, core/descriptor.md §3.1) is a `<g class="diagram-crawler diagram-crawler-composite">` holding one icon per asset, side by side; its optional bounding box (`box: true`) is a `<rect class="diagram-crawler-box">`, the group's first child.
 - **Classes:** `diagram-glow` on an acknowledged element, `diagram-clickable` on an armed gesture node.
 - **Inline styles:** `opacity` on revealed lines and labels, `stroke` and `stroke-width` while glowing, and `transform` on volumes as they dock. Replay clears them.
 - **The mode switch**, `label.diagram-mode-toggle`, inserted first in the footer when `modes.toggle` is set.
+- **A node's local storage display** (a node with `showLocalStorage`, core/descriptor.md §3.2): a `<g class="diagram-storage-display diagram-storage-overlay">` or `diagram-storage-adjacent`, created the first time that node holds something and repopulated as it grows. It reuses `.diagram-crawler-box` for `adjacent`'s bounding box; `overlay` has none.
 - **Text:** narration into the log, and each gesture node's `.diagram-hint`.
 
 ## 4. The stylesheet and the helpers
 
-**Classes the stylesheet must define** (`checkStylesheet`, warnings): `diagram`, `diagram-log`, `diagram-footer`, `diagram-replay`, `diagram-line`, `diagram-line-static`, `diagram-line-label`, `diagram-hint`, `diagram-clickable` and `diagram-glow`. The ones that carry behavior:
+**Classes the stylesheet must define** (`checkStylesheet`, warnings): `diagram`, `diagram-log`, `diagram-footer`, `diagram-replay`, `diagram-line`, `diagram-line-static`, `diagram-line-label`, `diagram-hint`, `diagram-clickable` and `diagram-glow`. `diagram-crawler-box` is needed only when a descriptor uses a composite crawler's `box: true` (checked only then). The ones that carry behavior:
 
 | Rule | It must |
 |---|---|
@@ -95,3 +96,7 @@ Geometry: whether a zone contains its members and docked volumes, whether a chan
 5. Run `markup/check.mjs`, then the descriptor validator, then the test-page builder, and look at it in a browser. Measure the geometry the checker doesn't.
 
 Never edit the ids to make a check pass without changing the descriptor's `element` to match: the two must agree.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

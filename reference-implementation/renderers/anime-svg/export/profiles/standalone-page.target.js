@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Target profile: one self-contained HTML page that opens from a file or any static host, with anime.js
 // inlined so it needs no network. Data only.
 export default {

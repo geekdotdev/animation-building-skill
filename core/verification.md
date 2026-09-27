@@ -77,3 +77,7 @@ Diagrams that were made as copies of each other need checking together. After ch
 - **Exports** can often only have their styling checked, when the environment's policy blocks the export's scripts (`core/delivery-targets.md`).
 - **A screenshot captures one frame,** so it can miss a fast moving asset.
 - **Once a validator exists** (`core/descriptor.md` §8), run it first: it catches structural mistakes before any of these steps.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

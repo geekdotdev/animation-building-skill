@@ -71,3 +71,7 @@ Cumulative time from load or Replay. The start of the first handshake (about 12 
 | about 16.7 s | both autonomous clients authenticated |
 
 The viewer waits about 12 seconds before the first interaction. Extra narration lines add 2 s each.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

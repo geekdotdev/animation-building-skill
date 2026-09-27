@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // A small parser for the HTML and SVG of a diagram file. No dependencies, and no DOM: it builds a tree of
 // { tag, attrs, children, parent } from start and end tags, which is all the markup checks need. Text is
 // ignored. It is not a general HTML parser: it doesn't handle unquoted `>` in attributes, `<script>` bodies

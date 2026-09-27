@@ -155,3 +155,7 @@ Two variants. Only the steps differ.
 - A diagram is mostly a few lanes made of patterns. Example diagram 5, for example: the setup lane is pattern 8; the logging client and auth-callout lanes are pattern 1, started together as pattern 2, then pattern 7; the user session lane is 9 wrapped around 4, 5 and 3, with 6 relaying messages.
 - Patterns don't own lanes or datums: the diagram does. Name datums per subject.
 - Two instances that share a channel with **different** assets need an overlay precedence, which is an escalation. Identical assets (payloads) don't.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // The parameter surface: the presentation parameters a target profile may set, and the CSS each one
 // controls (core/delivery-targets.md, "Parameterizing an export"). A profile sets a subset of these,
 // each with a reason. Any other name is an error.

@@ -31,3 +31,7 @@ After changing either file, run `node test.mjs`, and `markup/check.mjs` on your 
 ## What the example project's versions do differently
 
 The example's `diagram-shared.js` and `shared.css` are one application's implementation. Its helpers draw richer assets (a padlock, a padlock with a key) and let a log line carry inline markup, and its stylesheet is laid out for a page with a 720px column that the diagram breaks out of. These are simpler: they set each log line as text, so a narration line can't inject HTML, and they take the docking duration from the descriptor.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

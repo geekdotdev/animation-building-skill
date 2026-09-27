@@ -35,9 +35,9 @@ export default {
 |---|---|---|
 | `diagramLabel` | The diagram's id suffix (required). Every element's id is `<element>-<diagram-label>`, and tools read it from here, so there is no separate flag for it. | |
 | `markup` | Where the diagram's SVG lives: a path **relative to this file**, to a page or a file holding the diagram. The tools take the `<div class="diagram">` block from it, and it must meet the renderer's markup contract (for anime.js, `renderers/anime-svg/markup-contract.md`). A pointer only: the descriptor still holds no geometry, and the exporter leaves the path out of what it writes. Optional. | |
-| `nodes` | `{ name, label?, gesture? }`. `gesture: true` makes it a gesture target and gives it a hint element. | node |
-| `channels` | `{ name, a, b, duration, visibility, style?, label? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. | channel, line |
-| `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. | zone |
+| `nodes` | `{ name, label?, gesture?, showLocalStorage? }`. `gesture: true` makes it a gesture target and gives it a hint element. `showLocalStorage: { position, offset? }` displays that node's local storage (§3.2): `position` is `'overlay'` or `'adjacent'` (`adjacent` needs an `offset: { x, y }`; `overlay` must not have one). | node, local storage |
+| `channels` | `{ name, a, b, duration, visibility, style?, label?, authenticated?, authenticatedBy? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. `authenticated: false` declares the channel's authentication as a tracked state (starts false, like `visibility` starts hidden); `authenticatedBy` names the datum whose `acknowledge` targets this channel — that's what sets it `true`. Both optional, and `authenticatedBy` is required whenever `authenticated` is declared. Declaring this doesn't gate anything by itself: nothing currently requires a move onto an `authenticated` channel to check it. | channel, line |
+| `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as a watermark's box (§3.3). | zone |
 | `volumes` | `{ name, label, consumer, offset }`. The start position stays in the SVG. The offset is the docking move. | metaphor asset |
 | `durations` | Named durations, optionally linked: `{ handshakeLeg: { link: 'channel:logging-client' } }`. | timebox, convergence |
 | `datums` | See §4. | datum |
@@ -45,7 +45,10 @@ export default {
 | `sequences` | See §3. | sequence |
 | `pace` | A positive number, default 1: a factor on **every** duration and delay in the run, so 2 is twice as slow and 0.5 twice as fast. To change overall speed, change this and not each duration. Optional. See §9.11. | pace |
 | `modes` | `{ default, toggle, simulated }`. `default` is `'user-driven'` or `'automated'`. `toggle: true` lets the viewer switch (the renderer puts a switch beside Replay), and `false` fixes the mode at `default`. `simulated: { delay, acknowledge: { color, duration } }` is required when the mode can be automated: `delay` is the ms between a gesture being armed and its simulated press, and `acknowledge` is the short glow that shows the press. See §9.10. Omitted means user-driven only, with no toggle. | interaction mode, simulated gesture |
+| `strict` | A boolean, default `false`: every move's and divergence's assets must be in its origin node's local storage (§3.2). Local storage is tracked either way; this only makes an unstored send an error. | local storage |
+| `watermark` | `{ zone, repo?, author?, website?, fade? }`. Attribution to the skill and the developer (§3.3). Optional; omitted means no watermark at all. | watermark |
 | `overlays` | `{ channel, lanes, precedence, conflicts? }`. Required when different assets from two lanes (or phases) can coincide on a channel, which is an **escalation**. `precedence` is `[lane names]`, first wins, or `'unresolved'` while the user hasn't answered (a descriptor with any is a draft). `conflicts` lists the asset pairs that differ, so the question can be specific. Identical assets need no entry. The newest is on top if the user gives no precedence. | overlay precedence |
+| `validatorExceptions` | `[{ check: 'overlay', channel, reason }]`. Optional. Records that the user has looked at a specific overlay conflict and verified it can't actually happen, so the validator stops escalating it — the conflict is still real and still found, it just no longer blocks the agent. `reason` is a short string; `'temporallySeparated'` is the one defined value so far. It also drops that channel from the "an overlay is unresolved, so mark `draft: true`" requirement, since an exempted conflict isn't an open question anymore. A stale entry (the conflict it names no longer exists) is flagged. | validator exception |
 
 ## 3. Sequences, rules, triggers and actions
 
@@ -72,6 +75,7 @@ A **rule** says: when the trigger fires, perform the actions. That is the whole 
 | `{ start: true }` | the diagram loads or the lane's entry fires |
 | `{ gesture: 'browser' }` | the node is clicked, in a phase that arms it |
 | `{ arrival: { channel, direction, asset } }` | that asset arrives, **from a move in the same lane** |
+| `{ arrival: { channel, direction, assets: [name, …] } }` | a **composite crawler** with exactly that list, in that order, arrives, from a move in the same lane |
 | `{ datum: 'name' }` | the datum becomes true |
 
 **Actions** (`do`), each optionally with `after: ms`:
@@ -79,6 +83,7 @@ A **rule** says: when the trigger fires, perform the actions. That is the whole 
 | Action | Meaning |
 |---|---|
 | `{ move: { asset, channel, direction, duration? } }` | a transition along the channel's path. `duration` defaults to the channel's and may name a duration: `'@handshakeLeg'`. |
+| `{ move: { assets: [name, …], channel, direction, duration?, box? } }` | a **composite crawler** (§3.1): several assets travel together as one transition. `box: true` draws a bounding box around the cluster. |
 | `{ move: { asset, from, to, duration? } }` | a straight transition with no channel (metaphor) |
 | `{ reveal: ['name', …] }` | fade in channels or nodes |
 | `{ acknowledge: { target, duration? } }` | the orange glow |
@@ -86,8 +91,75 @@ A **rule** says: when the trigger fires, perform the actions. That is the whole 
 | `{ hint: { node, text } }` | set a node's hint |
 | `{ repeat: { every: ms, do: [ … ] } }` | run the actions now and every `every` ms until Reset |
 | `{ divergence: { asset, origin, branches: [ { channel, direction }, … ], sharedPrefix? } }` | see §6 |
+| `{ store: { at, asset } }` / `{ store: { at, assets: [name, …] } }` | adds to a node's local storage (§3.2); no animation, an instant fact |
 
 **Lane scoping replaces the `tag` workaround.** The interpreter tags each in-flight asset with the lane of the rule that created it, and an arrival trigger fires only for a rule in the same lane. Two lanes can use the same channel, direction and asset without colliding.
+
+## 3.1 Composite crawlers
+
+Several assets that travel together as one transition (ontology: **composite crawler**), for a payload that really carries more than one object — a CONNECT frame carrying both a JWT and an access token, say — instead of picking one icon to stand in for the rest.
+
+```js
+{ move: { assets: ['zeroPermissionJwt', 'accessToken'], channel: 'broker-browser', direction: 'return', box: true } }
+```
+
+- **`asset` and `assets` are mutually exclusive.** Exactly one, on a move, a divergence, or an arrival condition. `assets` needs **at least two** names; a single name is `asset`.
+- **Order is part of its identity.** An arrival condition matches the same list, in the same order, as the move that sent it. Two composite crawlers are "identical" (rule 6's exemption, rule 8's divergence identity) only when their lists match exactly.
+- **`box` and `spacing` only apply to a composite** (`assets`), never to a single `asset`. `spacing` is the gap between each shape's centre, in diagram units; omitted, it defaults to the renderer's own value (11 for the anime.js renderer).
+- **The renderer draws it as one crawler**, one icon per asset, side by side, moving together. The bounding box, if requested, encloses them. No dictionary entry or helper change is needed: each icon is drawn exactly as it would be alone.
+- **It's still one transition.** Everything about transitions (a duration, an origin and destination, one arrival) applies to the whole cluster, not to each asset separately.
+
+## 3.2 Local storage and strict mode
+
+Every node has **local storage** (ontology): the set of assets it holds. This is tracked whether or not anything checks it, and whether or not it's displayed — three independent things.
+
+**Tracking (always on).** An asset joins a node's storage when it **arrives** there — the destination end of any move or divergence branch, in any lane — or when a **store** action names that node:
+
+```js
+{ store: { at: 'server', asset: 'config' } }        // one asset
+{ store: { at: 'browser', assets: ['a', 'b'] } }    // a composite, same rules as a move's assets
+```
+
+`store` is a `do` action like any other, so it goes wherever the rule that explains it belongs:
+- **Created itself:** a `store` with no incoming arrival needed — typically on `start`, a `gesture`, or a `datum` trigger.
+- **Received from a docked volume:** a `store` as the action right after `dock` completes.
+- **Received from another channel:** needs no `store` at all — the arrival itself is enough.
+
+Storage only grows. Nothing removes an asset once it's there, and there is no separate node or volume field for this: the rule the `store` is placed in is the stated reason.
+
+**Strict mode (`strict: true`, top-level, optional).** Every move's and divergence's assets must be in its origin node's local storage. This is a **local shape check**, not a simulation: it asks whether *some* rule anywhere gives the origin that asset, not whether it happens *before* this particular send in every run. With `strict` omitted or `false`, storage is still tracked, but an unstored send is not an error.
+
+**Display (`showLocalStorage`, per node, optional, independent of `strict`).** The renderer shows a node's current storage as small icons:
+
+```js
+{ name: 'server', element: 'dg-box-server', showLocalStorage: { position: 'overlay' } }
+{ name: 'browser', element: 'dg-node-client', showLocalStorage: { position: 'adjacent', offset: { x: 20, y: -20 } } }
+```
+
+`position: 'overlay'` centres the icons on the node's own box. `'adjacent'` draws them in a small bounding box beside it, at `offset` from the node (diagram units, like a volume's docking offset). `offset` is required for `adjacent` and invalid for `overlay`.
+
+## 3.3 Watermark: attribution to the skill and the developer
+
+An attribution box, credit to the skill and, optionally, to whoever authored the diagram. Its position and size are a **zone with no members** — reusing the zone construct rather than adding a new geometry-holding field, since geometry already stays in the SVG for every other construct:
+
+```js
+zones: [
+  { name: 'credits', element: 'dg-zone-credits', label: 'Credits', members: { nodes: [], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } },
+],
+watermark: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://jane.dev', fade: 8 },
+```
+
+| Key | Meaning |
+|---|---|
+| `zone` | Required: the name of a zone to use as the box. That zone must have **no members** — an attribution box, not a trust boundary. |
+| `repo` | Optional, default `true`: a credit line naming this skill. `false` omits it. |
+| `author` | Optional. **Omitted, it falls back to whatever the host resolves as this machine's git identity** at build or serve time (`git var GIT_AUTHOR_IDENT`: config if set, else `GIT_AUTHOR_NAME`, else the OS account's own name — the same resolution `git commit` itself uses, not just the global config file, which can be empty even when git would still attribute a commit to someone) — the renderer itself has no filesystem access, so a Node-side tool resolves it and passes it in. With no descriptor value and nothing resolvable either, the author line is left out rather than showing a placeholder. |
+| `website` | Optional. If given alongside an author (from either source), the author's name becomes a link to it. |
+| `fade` | Optional: seconds until it fades out, once, after the diagram starts. `false` (the default if omitted) means **permanent**: it stays visible for the whole run. |
+
+- **Visible on start**, always — there's no "reveal" for a watermark; it's already there in the SVG.
+- **Permanently static.** Its position never changes, whatever `fade` is set to. The only thing that can animate is opacity, once, on the fade.
+- **Reset** returns it to visible and restarts the fade timer, exactly like anything else Reset returns to its start.
 
 ## 4. Datums
 
@@ -102,7 +174,7 @@ A **rule** says: when the trigger fires, perform the actions. That is the whole 
 }
 ```
 
-- `when` is one condition or `{ all: [ … ] }` or `{ any: [ … ] }` of arrivals, other datums or gestures. `all` across sequences is a **convergence**, such as "All services are ready".
+- `when` is one condition or `{ all: [ … ] }` or `{ any: [ … ] }` of arrivals, other datums, gestures, or a channel's authenticated state (`{ channel, authenticated: true }`, §2). `all` across sequences is a **convergence**, such as "All services are ready".
 - `acknowledge` is the closing acknowledgement, optional: once the datum is satisfied it plays on all its `targets` together, and **the datum's triggers activate when it completes**. `narrate` plays at that point too. This is the ontology's order (a datum is satisfied, then acknowledged, then its triggers fire), and the descriptor states it as intent. It doesn't reproduce a script that counts finished glows to decide a datum is true.
 - **`activates` is not stored.** The rules with `on: { datum: name }` are its consequences, so they are derived. Storing them twice would let them disagree.
 - **`terminal: true` is explicit** and must be present exactly when no rule reacts to the datum (ontology rule: explicit intent).
@@ -139,6 +211,8 @@ A divergence is written as an action, so it cannot be mistaken for an accident:
     sharedPrefix: null } }
 ```
 
+A divergence's branches can share a composite list instead of one asset (`assets: [...]` in place of `asset`, §3.1): every branch still carries the identical list, in the same order.
+
 `sharedPrefix` names a shared stretch of path, and is allowed only when every branch is in this rule's lane.
 
 **A divergence is about the channel startpoint,** not the node. The branches must begin at one point, which the SVG holds (the first point of a forward path, the last of a return path), so a validator measures it from the markup. Two channels that leave a node from different points aren't a divergence, even when one datum starts the same asset on both: those are two rules with the same trigger, and nothing needs declaring.
@@ -174,11 +248,15 @@ These are the checks of the validator (`reference-implementation/core/validator/
 
 | Check | From |
 |---|---|
+| A move, divergence or arrival has exactly one of `asset` or `assets` (at least two names); `box` only with `assets` | composite crawler |
+| With `strict: true`, every move's and divergence's assets are in its origin's local storage (built from arrivals and `store` actions) | local storage |
+| A watermark's `zone` resolves, and it has no members | watermark |
 | Names and durations resolve, and every asset exists in `ICONOGRAPHY` (`diagram-shared.js`; `domains/nats-oidc/iconography.md` is an example seed of it) | integrity |
 | Every sequence has a fidelity; `faithful` and `adapted` have a `source`; `adapted` has an `adaptation`; `metaphor` has `explains` | ontology, fidelity |
 | Every lane has one `subject`; phases chain by exit datum | rules 1 and 5 |
 | A datum with no reacting rule has `terminal: true`, and one with a reacting rule doesn't. A datum with neither is an **escalation** | terminal datum |
-| Two sequences in the same lane and phase sharing a channel is an **error** to restructure. Different assets from two lanes (or phases) on one channel need an `overlays` entry, and without one the validator **escalates**. Identical assets are exempt. | rule 6 |
+| Two sequences in the same lane and phase sharing a channel is an **error** to restructure. Different assets from two lanes (or phases) on one channel need an `overlays` entry, and without one the validator **escalates**. Identical assets are exempt. A `validatorExceptions` entry naming that channel suppresses the escalation (and drops the draft-required rule for it) instead of requiring a `precedence`; a stale one (the conflict it names no longer exists) is flagged. | rule 6, validator exception |
+| A channel's `authenticated` needs `authenticatedBy` naming a real datum, and that datum's `acknowledge.targets` must include the channel. A `{ channel, authenticated: true }` condition needs a channel that declares `authenticated`. | channel authentication |
 | A divergence has identical assets, one origin, one channel startpoint (measured from the markup), branches that differ after any prefix, and a prefix only within one lane | rule 8 |
 | Identical assets starting together at the **same channel startpoint** on different paths, with **no** divergence declared, is an **error**, which the agent fixes itself. Different startpoints are fine. | rule 8 |
 | Every gesture node is armed by some phase | rule 4 |
@@ -266,3 +344,7 @@ Done, in this order:
 3. The interpreter: `reference-implementation/renderers/anime-svg/`, checked against example diagram 5's script.
 
 Not done, and not authorized by this file: switching a diagram over to the interpreter. That happens on the user's request.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

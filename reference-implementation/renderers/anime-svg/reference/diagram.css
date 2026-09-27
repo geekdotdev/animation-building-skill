@@ -9,7 +9,7 @@
 .diagram svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* The event log, over the diagram's lower-left corner. */
-.diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: rgba(255, 255, 255, 0.94); border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
+.diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
 .diagram-log p { margin: 0 0 0.2rem; }
 .diagram-log p:last-child { margin-bottom: 0; }
 
@@ -26,6 +26,10 @@
 .diagram-volume-label { font: 600 8.5px sans-serif; fill: #6b4c00; pointer-events: none; }
 .diagram-zone { fill: none; stroke: #888; stroke-width: 1.5; stroke-dasharray: 6 4; }
 .diagram-zone-label { font: italic 500 10px sans-serif; fill: #777; }
+/* A watermark's zone reuses .diagram-zone for its box (core/descriptor.md §3.3), but it isn't a trust
+   boundary, so it shouldn't read as one: a solid line, not the dashed pattern real zones use. Add this
+   class alongside diagram-zone on the watermark's rect specifically. */
+.diagram-watermark-box { stroke-dasharray: none; }
 
 /* BEHAVIOR: a volume moves and scales from its own centre, not from the SVG's origin. Without this, docking looks wrong. */
 [id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }
@@ -39,6 +43,16 @@
 
 /* BEHAVIOR: a crawler is hidden until the helper draws it (createCrawlerElement makes it visible). */
 .diagram-crawler { opacity: 0; }
+
+/* A composite crawler's optional bounding box (core/descriptor.md section 3.1, `box: true`). Only drawn when a
+   descriptor asks for one; light and dashed so it reads as a grouping, not another component. */
+.diagram-crawler-box { fill: none; stroke: #999; stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* A watermark's credit lines (core/descriptor.md section 3.3), injected into its zone. Small and quiet: it's
+   attribution, not part of the diagram's own story. A linked line (the skill, or the author's website) picks
+   up the surrounding link colour instead of a fixed one, so it reads as a link. */
+.diagram-watermark-text { font: 500 9px sans-serif; fill: #999; }
+.diagram-watermark a .diagram-watermark-text { fill: #1a5fb4; text-decoration: underline; cursor: pointer; }
 
 /* BEHAVIOR: the interpreter adds these two classes. */
 .diagram-glow { filter: drop-shadow(0 0 4px rgba(255, 159, 28, 0.9)); } /* the acknowledge glow on a box or a line */

@@ -87,3 +87,7 @@ A template has the slots `{{header}}`, `{{style}}`, `{{diagram}}`, `{{script}}` 
 4. **Record what you couldn't verify.** The real host (for example, whether a Ghost HTML card keeps a module script) usually can't be tested from here. Put it in the profile's `unverified`.
 
 Tests: `node test.mjs` (30 tests on the pure functions and a build from synthetic inputs, with no app repo needed).
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*
