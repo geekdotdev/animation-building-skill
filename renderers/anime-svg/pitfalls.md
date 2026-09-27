@@ -24,3 +24,7 @@ Things that went wrong with this renderer, each with its cause and fix. Every en
 ## Scripting and testing
 
 - **A scripted click on an SVG `<g>` does nothing.** SVG groups have no `.click()`. Dispatch `new MouseEvent('click', { bubbles: true })`.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

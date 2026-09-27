@@ -59,3 +59,7 @@ Why not text replacement on the source: it couples the export to the source's *f
 - **Generator checks:** an unknown parameter, a parameter with no reason, or one whose target isn't in the exported diagram is an error, and so is an unfilled slot in the output.
 - **Staleness:** the export's header records a hash of each source, and `--check` compares a fresh export with an existing file.
 - **Gestures:** a target that can't take clicks, for a descriptor with gesture nodes, is an escalation unless the profile sets automated mode with no toggle (ontology rules 13 and 17 to 19).
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

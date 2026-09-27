@@ -95,3 +95,7 @@ Files: `spa-server/public/gateways/*-gateway.js` (one per diagram), `spa-server/
 - **Datum, not flag.** "Flag" is the code; "datum" is what the viewer sees as a milestone.
 - **Transition versus effect.** Only something that travels is a transition. A glow, a reveal, a log line and a hint are effects.
 - **Delivery target, not channel.** "Channel" already means a connection on the canvas.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

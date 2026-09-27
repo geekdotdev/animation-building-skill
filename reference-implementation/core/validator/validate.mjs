@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Animation descriptor validator: the checks of core/descriptor.md section 8.
 // No dependencies. Node 18+.
 //
@@ -32,7 +34,7 @@ import { pathToFileURL } from "node:url";
 const FIDELITY = ["faithful", "adapted", "metaphor"];
 const TIMEBOX = ["timed", "event-bounded", "user-paced", "open-ended"];
 const DIRECTIONS = ["forward", "return"];
-const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "durations", "datums", "lanes", "sequences", "overlays", "modes", "markup", "pace", "strict", "watermark"];
+const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark"];
 const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */, "store" /* strict mode: core/descriptor.md section 3.2 */];
 const ACTION_MODIFIERS = ["after", "duration", "name"]; // `duration` and `name` are used by `dock` and `hide` (proposed)
 
@@ -74,7 +76,7 @@ export function validate(d, opts = {}) {
   if (d.strict !== undefined && typeof d.strict !== "boolean") err("shape", "strict", "strict must be true or false");
   for (const k of ["nodes", "channels", "datums", "lanes", "sequences"]) if (!Array.isArray(d[k])) err("shape", k, `${k} must be an array`);
   if (out.some((f) => f.level === "error" && f.code === "shape")) return out;
-  d = { zones: [], volumes: [], durations: {}, overlays: [], ...d };
+  d = { zones: [], volumes: [], durations: {}, overlays: [], validatorExceptions: [], ...d };
 
   // ---- 1. names, uniqueness, references ---------------------------------------
   const dupes = (list, what) => { const seen = new Set(); for (const x of list) { if (!x || typeof x.name !== "string") { err("shape", what, "an entry has no name"); continue; } if (seen.has(x.name)) err("duplicate", `${what} ${x.name}`, "duplicate name"); seen.add(x.name); } return seen; };
@@ -111,6 +113,22 @@ export function validate(d, opts = {}) {
     if (!nodes.has(c.a) || !nodes.has(c.b)) err("unresolved", `channel ${c.name}`, `endpoint ${!nodes.has(c.a) ? c.a : c.b} is not a node`);
     if (!Number.isFinite(c.duration) || c.duration <= 0) err("duration", `channel ${c.name}`, "duration must be a positive number of milliseconds");
     if (!["static", "hidden"].includes(c.visibility)) err("shape", `channel ${c.name}`, "visibility must be static or hidden");
+    // Channel authentication (core/ontology.md, Channel): a declared, tracked state, like visibility — starts
+    // false, and a datum's acknowledge (glow) on the channel sets it true. Declaring it records the state and
+    // lets other datums reference it; nothing here makes any move check it.
+    if (c.authenticated !== undefined) {
+      if (typeof c.authenticated !== "boolean") err("shape", `channel ${c.name}`, "authenticated must be true or false");
+      if (c.authenticatedBy === undefined) err("shape", `channel ${c.name}`, "authenticated needs authenticatedBy: the datum whose acknowledge sets it true");
+    }
+    if (c.authenticatedBy !== undefined) {
+      if (c.authenticated === undefined) err("shape", `channel ${c.name}`, "authenticatedBy only applies alongside authenticated");
+      else if (typeof c.authenticatedBy !== "string" || !c.authenticatedBy) err("shape", `channel ${c.name}`, "authenticatedBy must be a datum name");
+      else {
+        const dm = d.datums.find((x) => x && x.name === c.authenticatedBy);
+        if (!dm) err("unresolved", `channel ${c.name}`, `authenticatedBy ${c.authenticatedBy} is not a defined datum`);
+        else if (!arr(dm.acknowledge?.targets).includes(c.name)) err("shape", `channel ${c.name}`, `authenticatedBy ${c.authenticatedBy} must acknowledge (glow) this channel: add it to acknowledge.targets`);
+      }
+    }
   }
   for (const z of d.zones) {
     const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] };
@@ -149,6 +167,14 @@ export function validate(d, opts = {}) {
       const list = carriedOf(x.arrival, `${where} arrival`);
       if (list && assets) list.forEach((a) => assets.has(a) || err("unknown-asset", where, `asset ${a} is not in the iconography`));
     } else if (x.gesture !== undefined) gestureNodes.has(x.gesture) || err("unresolved", where, `gesture on ${x.gesture}, which is not a node with gesture: true`);
+    else if (x.channel !== undefined) {
+      // A channel's authenticated state (core/ontology.md, Channel), for datums that want to react to it
+      // directly rather than to the specific datum that sets it.
+      const ch = chanObj.get(x.channel);
+      if (!ch) err("unresolved", where, `channel ${x.channel} is not defined`);
+      else if (ch.authenticated === undefined) err("unresolved", where, `channel ${x.channel} does not declare authenticated: this condition can never be satisfied`);
+      if (x.authenticated !== true) err("shape", where, "a channel condition must be { channel, authenticated: true }");
+    }
     else if (x.completed !== undefined) dockNames.has(x.completed) || err("unresolved", where, `completed ${x.completed} names no dock action`); // proposed F10
     else if (x.delay !== undefined) { if (!(x.delay >= 0)) err("duration", where, "delay must be a non-negative number"); } // proposed F3
     else if (x.start === true) { /* ok */ }
@@ -319,8 +345,25 @@ export function validate(d, opts = {}) {
     for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) for (const a1 of byLane[ls[i]]) for (const a2 of byLane[ls[j]]) if (a1 !== a2) pairs.push(`${JSON.parse(a1).join(" + ")} (${ls[i]}) vs ${JSON.parse(a2).join(" + ")} (${ls[j]})`);
     if (ls.length > 1) conflicts[c] = { lanes: ls, pairs };
   }
+
+  // validatorExceptions (core/ontology.md, Validator exception): an explicit, recorded "I looked at this
+  // specific conflict and it can't actually happen, here's why" — it never changes what conflicts() found
+  // above, only whether that one channel's overlay escalation still fires. Only `check: 'overlay'` exists yet.
+  const exemptOverlay = new Set();
+  for (const [i, e] of d.validatorExceptions.entries()) {
+    const w = `validatorExceptions[${i}]`;
+    if (!isObj(e)) { err("shape", w, "an entry must be an object { check, channel, reason }"); continue; }
+    if (e.check !== "overlay") { err("shape", w, `unknown check ${JSON.stringify(e.check)}: only "overlay" is defined`); continue; }
+    if (typeof e.channel !== "string" || !chans.has(e.channel)) { err("unresolved", w, `channel ${JSON.stringify(e.channel)} is not defined`); continue; }
+    if (typeof e.reason !== "string" || !e.reason.trim()) { err("shape", w, "reason must be a non-empty string"); continue; }
+    if (e.reason !== "temporallySeparated") warn("validator-exception", w, `reason ${JSON.stringify(e.reason)} isn't a recognized value (only "temporallySeparated" is defined) — still honored`);
+    if (!conflicts[e.channel] || !conflicts[e.channel].pairs.length) { warn("validator-exception", w, `channel ${e.channel} has no conflicting assets from different lanes: the exception is stale, remove it`); continue; }
+    exemptOverlay.add(e.channel);
+  }
+
   for (const [c, info] of Object.entries(conflicts)) {
     if (!info.pairs.length) continue; // identical assets only: exempt
+    if (exemptOverlay.has(c)) { if (!d.overlays.find((x) => x.channel === c)) warn("overlay", `channel ${c}`, "conflict is exempted by validatorExceptions, but no overlays entry documents the conflicting asset pairs"); continue; }
     const o = d.overlays.find((x) => x.channel === c);
     if (!o) esc("overlay", `channel ${c}`, `${info.pairs.length} different-asset pairs from lanes ${info.lanes.join(", ")} can coincide (e.g. ${info.pairs[0]}). Which is drawn on top, or can they never coincide?`);
     else if (o.precedence === "unresolved") esc("overlay", `channel ${c}`, `overlay precedence is still unresolved (${info.pairs.length} conflicting pairs, e.g. ${info.pairs[0]})`);
@@ -336,7 +379,7 @@ export function validate(d, opts = {}) {
     }
     if (JSON.stringify([...arr(o.lanes)].sort()) !== JSON.stringify([...info.lanes].sort())) err("overlay", w, `lanes ${JSON.stringify(o.lanes)} differ from the lanes that use the channel (${info.lanes.join(", ")}): the entry is stale`);
   }
-  const unresolved = d.overlays.some((o) => o.precedence === "unresolved");
+  const unresolved = d.overlays.some((o) => o.precedence === "unresolved" && !exemptOverlay.has(o.channel));
   if (unresolved && d.draft !== true) err("draft", "draft", "an overlay is unresolved, so the descriptor must be marked draft: true");
   if (d.draft === true && !unresolved) warn("draft", "draft", "marked draft: true but no overlay is unresolved: is anything else still open?");
 

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Descriptor interpreter for anime.js v3 and inline SVG: the shared renderer described by
 // core/descriptor.md section 9. It reads a descriptor (a data-only module) and animates a diagram
 // whose markup already exists, so geometry stays in the SVG.
@@ -103,9 +105,10 @@ export function createInterpreter(d, env) {
   const leafKey = (c, datum) =>
     c.arrival ? `arrival:${c.arrival.channel}/${c.arrival.direction}/${assetKey(c.arrival)}`
       : c.gesture !== undefined ? `gesture:${c.gesture}`
-        : c.completed !== undefined ? `completed:${c.completed}`
-          : c.delay !== undefined ? `delay:${datum}`
-            : c.start ? 'start' : null;
+        : c.channel !== undefined ? `authenticated:${c.channel}`
+          : c.completed !== undefined ? `completed:${c.completed}`
+            : c.delay !== undefined ? `delay:${datum}`
+              : c.start ? 'start' : null;
   const evalCond = (c, datum) => {
     if (!c) return true;
     if (c.all) return c.all.every((x) => evalCond(x, datum));
@@ -270,7 +273,16 @@ export function createInterpreter(d, env) {
     for (const s of targets) { anime.remove(s); doc.querySelector(s).classList.add('diagram-glow'); }
     anime({
       targets, stroke: ['#999', '#ff9f1c', '#999'], strokeWidth: [1.5, 3, 1.5], duration, easing: 'easeOutQuad',
-      complete: guard(() => { for (const s of targets) doc.querySelector(s).classList.remove('diagram-glow'); done(); }),
+      complete: guard(() => {
+        for (const s of targets) doc.querySelector(s).classList.remove('diagram-glow');
+        // A channel's authenticated state (core/ontology.md, Channel): this glow completing sets it true, for
+        // any target that's a channel declaring `authenticated`. Nothing reacts to it unless a datum's `when`
+        // names it (core/descriptor.md section 2) — declaring it doesn't gate anything by itself.
+        let authChanged = false;
+        for (const n of names) { const c = chans.get(n); if (c?.authenticated !== undefined && !leaves.has(`authenticated:${n}`)) { leaves.add(`authenticated:${n}`); authChanged = true; } }
+        if (authChanged) checkDatums();
+        done();
+      }),
     });
   }
   function dock(a, done) {
@@ -394,8 +406,11 @@ export function createInterpreter(d, env) {
     const width = parseFloat(rect.getAttribute('width')), height = parseFloat(rect.getAttribute('height'));
     const author = w.author ?? env.watermarkAuthor;
     const lines = [];
-    if (w.repo !== false) lines.push({ text: 'Built with the diagram-animation skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
-    if (author) lines.push({ text: author, href: w.website });
+    // "Coordinated by Claude": Claude authors within a fixed, developer-defined format and rule set
+    // (the ontology, the validator, this interpreter's own contract) — not a free-form "AI-generated"
+    // claim, since the process and its constraints are the skill's, not the model's own invention.
+    if (w.repo !== false) lines.push({ text: 'Coordinated by Claude, built with diagram-animation skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
+    if (author) lines.push({ text: `Authored By: ${author}`, href: w.website });
     watermarkGroup = doc.createElementNS(SVGNS, 'g');
     watermarkGroup.setAttribute('class', 'diagram-watermark');
     const lineHeight = 12, top = y + height / 2 - ((lines.length - 1) * lineHeight) / 2;

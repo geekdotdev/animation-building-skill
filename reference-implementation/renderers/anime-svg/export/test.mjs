@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Tests for export.mjs: pure functions and a build from synthetic inputs (no app repo, no browser).
 // Run: node test.mjs
 import assert from "node:assert/strict";

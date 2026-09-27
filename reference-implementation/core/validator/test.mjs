@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Tests for validate.mjs: the valid fixture is clean, and each mutation is caught with the
 // expected code. Run: node test.mjs
 import assert from "node:assert/strict";
@@ -230,6 +232,40 @@ const declareComposite = (d) => { forkComposite(d); d.sequences[1].rules[0].do.s
 t("composite divergence from one startpoint, with a box, is accepted", declareComposite, [], same);
 t("composite divergence whose branches start at different points", declareComposite, ["error:divergence"], apart);
 t("divergence: box is an error without assets (a plain single-asset divergence)", (d) => { fork(d); d.sequences[1].rules[0].do.splice(1, 2, { divergence: { asset: "payload", origin: "other", box: true, branches: [{ channel: "server-other", direction: "return" }, { channel: "server-third", direction: "return" }] } }); }, ["error:shape"], same);
+
+// channel authentication (core/ontology.md, Channel): a declared, tracked state — like visibility, starts
+// false, set true by a datum's acknowledge (glow). Doesn't gate anything by itself.
+t("channel authenticated: valid, with authenticatedBy acknowledging it", (d) => { d.channels[0].authenticated = false; d.channels[0].authenticatedBy = "client-connected"; }, []);
+t("channel authenticated: must be true or false", (d) => { d.channels[0].authenticated = "yes"; d.channels[0].authenticatedBy = "client-connected"; }, ["error:shape"]);
+t("channel authenticated: needs authenticatedBy", (d) => { d.channels[0].authenticated = false; }, ["error:shape"]);
+t("channel authenticatedBy: needs authenticated", (d) => { d.channels[0].authenticatedBy = "client-connected"; }, ["error:shape"]);
+t("channel authenticatedBy: must be a string", (d) => { d.channels[0].authenticated = false; d.channels[0].authenticatedBy = 123; }, ["error:shape"]);
+t("channel authenticatedBy: names an undefined datum", (d) => { d.channels[0].authenticated = false; d.channels[0].authenticatedBy = "nope"; }, ["error:unresolved"]);
+t("channel authenticatedBy: datum does not acknowledge this channel", (d) => { d.channels[0].authenticated = false; d.channels[0].authenticatedBy = "other-published"; }, ["error:shape"]);
+
+// the { channel, authenticated: true } condition, so a datum can react to the state directly
+t("channel-authenticated condition: valid", (d) => {
+  d.channels[0].authenticated = false; d.channels[0].authenticatedBy = "client-connected";
+  d.datums.push({ name: "x", label: "X", terminal: true, when: { channel: "server-client", authenticated: true } });
+}, []);
+t("channel-authenticated condition: channel not defined", (d) => { d.datums.push({ name: "x", label: "X", terminal: true, when: { channel: "nope", authenticated: true } }); }, ["error:unresolved"]);
+t("channel-authenticated condition: channel does not declare authenticated", (d) => { d.datums.push({ name: "x", label: "X", terminal: true, when: { channel: "server-client", authenticated: true } }); }, ["error:unresolved"]);
+t("channel-authenticated condition: authenticated must be true", (d) => {
+  d.channels[0].authenticated = false; d.channels[0].authenticatedBy = "client-connected";
+  d.datums.push({ name: "x", label: "X", terminal: true, when: { channel: "server-client", authenticated: false } });
+}, ["error:shape"]);
+
+// validatorExceptions (core/ontology.md, Validator exception): suppresses one already-found overlay
+// escalation once the user has verified it can't actually happen, without changing what conflicts() finds.
+t("validatorExceptions: suppresses the overlay escalation", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "temporallySeparated" }]; }, []);
+t("validatorExceptions: also drops the draft-required rule", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "temporallySeparated" }]; d.draft = true; }, ["warning:draft"]);
+t("validatorExceptions: entry not an object", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = ["nope"]; }, ["error:shape", "escalation:overlay", "error:draft"]);
+t("validatorExceptions: unknown check", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "nope", channel: "server-client", reason: "temporallySeparated" }]; }, ["error:shape", "escalation:overlay", "error:draft"]);
+t("validatorExceptions: channel not defined", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "nope", reason: "temporallySeparated" }]; }, ["error:unresolved", "escalation:overlay", "error:draft"]);
+t("validatorExceptions: reason must be a non-empty string", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "" }]; }, ["error:shape", "escalation:overlay", "error:draft"]);
+t("validatorExceptions: unrecognized reason value still exempts, with a warning", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "becauseISaidSo" }]; }, ["warning:validator-exception"]);
+t("validatorExceptions: stale (no conflict on that channel)", (d) => { d.validatorExceptions = [{ check: "overlay", channel: "server-other", reason: "temporallySeparated" }]; }, ["warning:validator-exception"]);
+t("validatorExceptions: exempted but no overlays entry documents it", (d) => { shared(d); d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "temporallySeparated" }]; }, ["warning:overlay"]);
 
 let failed = 0;
 for (const c of cases) {

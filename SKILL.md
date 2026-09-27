@@ -85,3 +85,7 @@ Nothing is planned. Until the user names something, don't invent contents: ask, 
 **Written:** `core/descriptor.md` specifies the animation descriptor (a data-only ES module of rules that say "when this trigger fires, do these actions", plus datums, lanes and phases, with fidelity and explicit-intent fields), what a validator checks, and the renderer's contract. Its six design choices are approved by the user.
 
 **Existing code does not conform yet.** See `examples/nats-nkey-demo/README.md`. This skill describes how new or changed work should be done. Don't refactor existing diagrams or scripts to conform unless the user asks.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

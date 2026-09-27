@@ -114,3 +114,7 @@ The **profile** says where it's going, and it can set the pace of the exported c
 | Profiles and what an export can change | `reference-implementation/renderers/anime-svg/export/README.md` |
 | The checks to run after a change | `reference-implementation/renderers/anime-svg/test/README.md` |
 | Something not working | `renderers/anime-svg/pitfalls.md`, and Troubleshooting in `README.md` |
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

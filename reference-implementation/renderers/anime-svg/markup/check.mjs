@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Checks a diagram's markup (and, if given, the stylesheet and helpers) against the markup contract in
 // renderers/anime-svg/markup-contract.md: the structure and names the interpreter reads and writes.
 //

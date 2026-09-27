@@ -35,3 +35,7 @@ Lab 5's animation descriptor, written by hand from its script in the draft forma
 ## Existing code does not conform yet
 
 `shared.css` uses literal values, `scripts/build_lab5_standalone.py` applies exact-string replacements, and the gateway scripts still hard-code their flows in `beadArrived` chains. The skill describes how new or changed work should be done. Don't refactor existing diagrams or scripts to conform unless the user asks.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Tests for the markup parser and the markup checks. The skeleton (../skeleton/) is the valid baseline, and
 // each test breaks it one way and expects the check for that to fire. Run: node test.mjs
 import assert from "node:assert/strict";

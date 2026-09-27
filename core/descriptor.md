@@ -36,7 +36,7 @@ export default {
 | `diagramLabel` | The diagram's id suffix (required). Every element's id is `<element>-<diagram-label>`, and tools read it from here, so there is no separate flag for it. | |
 | `markup` | Where the diagram's SVG lives: a path **relative to this file**, to a page or a file holding the diagram. The tools take the `<div class="diagram">` block from it, and it must meet the renderer's markup contract (for anime.js, `renderers/anime-svg/markup-contract.md`). A pointer only: the descriptor still holds no geometry, and the exporter leaves the path out of what it writes. Optional. | |
 | `nodes` | `{ name, label?, gesture?, showLocalStorage? }`. `gesture: true` makes it a gesture target and gives it a hint element. `showLocalStorage: { position, offset? }` displays that node's local storage (§3.2): `position` is `'overlay'` or `'adjacent'` (`adjacent` needs an `offset: { x, y }`; `overlay` must not have one). | node, local storage |
-| `channels` | `{ name, a, b, duration, visibility, style?, label? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. | channel, line |
+| `channels` | `{ name, a, b, duration, visibility, style?, label?, authenticated?, authenticatedBy? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. `authenticated: false` declares the channel's authentication as a tracked state (starts false, like `visibility` starts hidden); `authenticatedBy` names the datum whose `acknowledge` targets this channel — that's what sets it `true`. Both optional, and `authenticatedBy` is required whenever `authenticated` is declared. Declaring this doesn't gate anything by itself: nothing currently requires a move onto an `authenticated` channel to check it. | channel, line |
 | `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as a watermark's box (§3.3). | zone |
 | `volumes` | `{ name, label, consumer, offset }`. The start position stays in the SVG. The offset is the docking move. | metaphor asset |
 | `durations` | Named durations, optionally linked: `{ handshakeLeg: { link: 'channel:logging-client' } }`. | timebox, convergence |
@@ -48,6 +48,7 @@ export default {
 | `strict` | A boolean, default `false`: every move's and divergence's assets must be in its origin node's local storage (§3.2). Local storage is tracked either way; this only makes an unstored send an error. | local storage |
 | `watermark` | `{ zone, repo?, author?, website?, fade? }`. Attribution to the skill and the developer (§3.3). Optional; omitted means no watermark at all. | watermark |
 | `overlays` | `{ channel, lanes, precedence, conflicts? }`. Required when different assets from two lanes (or phases) can coincide on a channel, which is an **escalation**. `precedence` is `[lane names]`, first wins, or `'unresolved'` while the user hasn't answered (a descriptor with any is a draft). `conflicts` lists the asset pairs that differ, so the question can be specific. Identical assets need no entry. The newest is on top if the user gives no precedence. | overlay precedence |
+| `validatorExceptions` | `[{ check: 'overlay', channel, reason }]`. Optional. Records that the user has looked at a specific overlay conflict and verified it can't actually happen, so the validator stops escalating it — the conflict is still real and still found, it just no longer blocks the agent. `reason` is a short string; `'temporallySeparated'` is the one defined value so far. It also drops that channel from the "an overlay is unresolved, so mark `draft: true`" requirement, since an exempted conflict isn't an open question anymore. A stale entry (the conflict it names no longer exists) is flagged. | validator exception |
 
 ## 3. Sequences, rules, triggers and actions
 
@@ -173,7 +174,7 @@ watermark: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://
 }
 ```
 
-- `when` is one condition or `{ all: [ … ] }` or `{ any: [ … ] }` of arrivals, other datums or gestures. `all` across sequences is a **convergence**, such as "All services are ready".
+- `when` is one condition or `{ all: [ … ] }` or `{ any: [ … ] }` of arrivals, other datums, gestures, or a channel's authenticated state (`{ channel, authenticated: true }`, §2). `all` across sequences is a **convergence**, such as "All services are ready".
 - `acknowledge` is the closing acknowledgement, optional: once the datum is satisfied it plays on all its `targets` together, and **the datum's triggers activate when it completes**. `narrate` plays at that point too. This is the ontology's order (a datum is satisfied, then acknowledged, then its triggers fire), and the descriptor states it as intent. It doesn't reproduce a script that counts finished glows to decide a datum is true.
 - **`activates` is not stored.** The rules with `on: { datum: name }` are its consequences, so they are derived. Storing them twice would let them disagree.
 - **`terminal: true` is explicit** and must be present exactly when no rule reacts to the datum (ontology rule: explicit intent).
@@ -254,7 +255,8 @@ These are the checks of the validator (`reference-implementation/core/validator/
 | Every sequence has a fidelity; `faithful` and `adapted` have a `source`; `adapted` has an `adaptation`; `metaphor` has `explains` | ontology, fidelity |
 | Every lane has one `subject`; phases chain by exit datum | rules 1 and 5 |
 | A datum with no reacting rule has `terminal: true`, and one with a reacting rule doesn't. A datum with neither is an **escalation** | terminal datum |
-| Two sequences in the same lane and phase sharing a channel is an **error** to restructure. Different assets from two lanes (or phases) on one channel need an `overlays` entry, and without one the validator **escalates**. Identical assets are exempt. | rule 6 |
+| Two sequences in the same lane and phase sharing a channel is an **error** to restructure. Different assets from two lanes (or phases) on one channel need an `overlays` entry, and without one the validator **escalates**. Identical assets are exempt. A `validatorExceptions` entry naming that channel suppresses the escalation (and drops the draft-required rule for it) instead of requiring a `precedence`; a stale one (the conflict it names no longer exists) is flagged. | rule 6, validator exception |
+| A channel's `authenticated` needs `authenticatedBy` naming a real datum, and that datum's `acknowledge.targets` must include the channel. A `{ channel, authenticated: true }` condition needs a channel that declares `authenticated`. | channel authentication |
 | A divergence has identical assets, one origin, one channel startpoint (measured from the markup), branches that differ after any prefix, and a prefix only within one lane | rule 8 |
 | Identical assets starting together at the **same channel startpoint** on different paths, with **no** divergence declared, is an **error**, which the agent fixes itself. Different startpoints are fine. | rule 8 |
 | Every gesture node is armed by some phase | rule 4 |
@@ -342,3 +344,7 @@ Done, in this order:
 3. The interpreter: `reference-implementation/renderers/anime-svg/`, checked against example diagram 5's script.
 
 Not done, and not authorized by this file: switching a diagram over to the interpreter. That happens on the user's request.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

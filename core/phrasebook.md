@@ -114,3 +114,7 @@ Ask only when the request is ambiguous or an escalation applies. Ask one questio
 - **Report verification in three parts** (`core/verification.md`): checked in the browser, read from the code, not verified.
 - **Say when you interpreted a phrase,** for example "I took 30px as 30 diagram units".
 - **When you change a rule because the user corrected you,** say what the rule is now, once, without restating their point back to them.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

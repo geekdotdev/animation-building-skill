@@ -116,3 +116,7 @@ Otherwise decide, say what you decided, and move on. Don't interview.
 - **Fixing the diagram to fix its export,** or the reverse. Presentation belongs to the target profile.
 - **Applying a change to one diagram** that belongs in its siblings, without saying so.
 - **Refactoring existing diagrams or scripts** to match the skill, unasked.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

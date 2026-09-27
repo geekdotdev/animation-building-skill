@@ -25,3 +25,7 @@ lsof -ti :8765 | xargs kill
 ```
 
 **The page looks stale after rebuilding the site.** Hard-refresh the browser (Cmd-Shift-R). A plain reload can serve the old script and stylesheet from its cache.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Target profile: the example project's diagram 5 pasted into a Ghost blog's HTML card. Data only.
 // The reasons are from examples/nats-nkey-demo/ghost-export.md, where they were first recorded.
 export default {

@@ -12,7 +12,7 @@ Status: draft 7, defaults adopted. Revisit a rule if a real diagram disagrees wi
 |---|---|---|
 | **Node** | A component box. It may be a gesture target, with a hint. | DSL |
 | **Zone** | A static spatial container with **members** (including docked assets, measured at their final position), a **padding**, and a label. It is a spatial annotation, not a logical milestone. | DSL |
-| **Channel** | A persistent connection between two nodes with ordered endpoints (a → b); "forward" is a → b. It carries many transitions in both directions. Its visibility is a policy: static, or hidden until a trigger reveals it. | DSL |
+| **Channel** | A persistent connection between two nodes with ordered endpoints (a → b); "forward" is a → b. It carries many transitions in both directions. Its visibility is a policy: static, or hidden until a trigger reveals it. It may also declare an **authenticated** state, starting `false` like visibility starts hidden: a datum's closing acknowledgement (its glow) on the channel sets it `true`, and other datums' conditions may reference it. Declaring it records the state and lets it be referenced; nothing renders or routes differently because of it unless a rule is written to react to it. | DSL |
 | **Line** | The visible drawing of a channel. Its visibility belongs to the channel, not to any one transition. | DSL |
 | **Path** | The geometry a transition follows. Every transition has one: a channel's path, or its own straight or free path with no channel. | DSL |
 | **Asset** | What moves or is shown: a primitive shape, an icon or a bitmap. Its meaning comes from the iconography dictionary. | DSL |
@@ -72,6 +72,7 @@ Status: draft 7, defaults adopted. Revisit a rule if a real diagram disagrees wi
 | **Simulated-gesture acknowledgement** | The effect that shows a simulated gesture happened: for example a short blue glow on the feature being pressed. Its look and duration are declared in the descriptor. It is distinct from a datum's closing acknowledgement. | DSL |
 | **Overlay precedence** | For a channel where **different** assets from two lanes (or phases) can coincide, the order in which they take visual precedence: draw order, and which acknowledge glow shows. It is the user's answer to an escalation. **If the user gives none, the newest asset is on top.** Identical assets (same type and colour, like event payloads) need none, since their order is invisible. | DSL |
 | **Escalation** | An ambiguity the agent must put to the user instead of resolving itself. | agent-only |
+| **Validator exception** | The user's explicit, recorded answer that a check the validator would otherwise escalate is a false positive: the conflict is real, structurally, but the user has verified it can't actually happen, and states why (a `reason`). It never changes what the validator finds, only whether that one finding still stops the agent — an honest "I looked, and here's why," not a way to silence a check unread. | DSL |
 
 ## E. The descriptor and explicit intent
 
@@ -134,6 +135,7 @@ Rules 1, 2, 4, 5, 7 and 10 concern lanes and phases. They are guidance for the a
 23. **A composite crawler is one transition with several assets, declared explicitly.** It is not two coincidental single-asset moves that happen to share a trigger and a channel: those are still separate transitions and, if they start together at the same channel startpoint, an undeclared divergence (rule 8). A composite crawler's arrival condition names the same list, in the same order, as the move that sent it.
 24. **Local storage is tracked whether or not strict mode is on.** An asset joins a node's storage on arrival there, or on a `store` naming it, independent of `strict` and of whether it's displayed. Strict mode (`strict: true`) only adds a check: every asset a move or divergence sends must be in its origin's local storage. The check is a **local shape check** — does any rule anywhere give this node this asset, not whether it happens before this particular send in every run — so it doesn't verify execution order, and storage only grows, never spends. A node's display (`showLocalStorage`) is independent again: it can be shown with strict mode off, and left undisplayed with it on.
 25. **A watermark's zone has no members,** and using one that has any is an error: it is an attribution box, not a trust boundary, so the two roles don't mix. It is visible from the start; if a fade is declared, it fades once and stays hidden, and never re-fades on its own. Reset returns it to visible and restarts its fade, the same as anything else Reset returns to its start.
+26. **A validator exception never substitutes for understanding a conflict.** The validator still finds it, computes it, and would still escalate it; the exception only records that the user has looked at that specific one and can say why it's unreachable. It is scoped to one check and one thing the check is about (today: `overlay` and a channel), never a blanket "ignore everything here," and it goes stale the same way an overlay entry does: if the descriptor changes and the conflict it names no longer exists, the exception is flagged as no longer needed rather than silently kept.
 
 ## Escalations: the agent stops and asks the user
 
@@ -150,3 +152,7 @@ Rules 1, 2, 4, 5, 7 and 10 concern lanes and phases. They are guidance for the a
 ## Where each concept lives in the code
 
 See `renderers/anime-svg/concept-map.md`, which maps every term here to the animation behavior and code that realizes it in one renderer.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

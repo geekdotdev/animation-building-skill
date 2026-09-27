@@ -13,3 +13,7 @@ Rules for timing in a diagram built on **anime.js v3**. The general rules are in
 
 - **Moving assets use `easing: 'linear'`** (constant speed). Reveals, glows and docking use `easeOutQuad`.
 - **A moving asset fades out for about 350 ms after it arrives,** and is then removed.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

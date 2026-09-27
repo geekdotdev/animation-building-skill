@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Reference helpers for the anime.js interpreter: the three functions the interpreter is given, plus a small
 // generic iconography. This file meets renderers/anime-svg/markup-contract.md section 4, and any application can
 // use it as it is or copy it. Its `import` is the convention the test-page builder and the exporter both

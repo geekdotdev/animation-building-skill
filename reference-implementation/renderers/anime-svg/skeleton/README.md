@@ -34,3 +34,7 @@ const zone = box('dg-zone-trusted');
 ```
 
 Run it after the volume has docked, because a volume is measured where it is now, not where it will be.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

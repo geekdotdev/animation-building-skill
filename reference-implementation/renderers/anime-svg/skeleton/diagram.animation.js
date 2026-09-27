@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Skeleton descriptor: pairs with diagram.html. Copy both, rename the diagram label, and replace the
 // content. The format is core/descriptor.md. This one is small but uses every kind of thing a descriptor names:
 // nodes (a box, a gesture node, a group), channels (hidden with a label, and static), a zone, a volume that

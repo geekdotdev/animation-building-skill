@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Observes a diagram's page and records what it does, in window.__run:
 //   { log: [{t, text}], events: [...], clicks: [{t, node, phase, by}], done }
 // It never acts: the interaction mode belongs to the descriptor and the interpreter (`modes`, ontology

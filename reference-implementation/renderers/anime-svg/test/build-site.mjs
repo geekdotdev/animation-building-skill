@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Assembles a static test site that runs a descriptor's diagram with the interpreter.
 //
 //   node build-site.mjs --descriptor <file.animation.js> --out <dir> \

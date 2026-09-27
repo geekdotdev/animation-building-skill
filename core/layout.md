@@ -81,3 +81,7 @@ Run these after any layout change, against the rendered diagram:
 9. A line hidden until first use isn't visible in a static check. Force it visible to inspect its geometry, then don't leave it that way.
 
 How to run these in one environment is in `examples/nats-nkey-demo/environment.md`.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

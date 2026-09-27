@@ -26,6 +26,10 @@
 .diagram-volume-label { font: 600 8.5px sans-serif; fill: #6b4c00; pointer-events: none; }
 .diagram-zone { fill: none; stroke: #888; stroke-width: 1.5; stroke-dasharray: 6 4; }
 .diagram-zone-label { font: italic 500 10px sans-serif; fill: #777; }
+/* A watermark's zone reuses .diagram-zone for its box (core/descriptor.md §3.3), but it isn't a trust
+   boundary, so it shouldn't read as one: a solid line, not the dashed pattern real zones use. Add this
+   class alongside diagram-zone on the watermark's rect specifically. */
+.diagram-watermark-box { stroke-dasharray: none; }
 
 /* BEHAVIOR: a volume moves and scales from its own centre, not from the SVG's origin. Without this, docking looks wrong. */
 [id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }

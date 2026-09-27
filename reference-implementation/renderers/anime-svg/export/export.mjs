@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Exports an animated diagram to a delivery target (core/delivery-targets.md).
 //
 //   node export.mjs --descriptor <file.animation.js> --profile <target.js> --out <file.html> \

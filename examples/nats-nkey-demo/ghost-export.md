@@ -47,3 +47,7 @@ The general steps are in `core/delivery-targets.md`. In this environment:
 - **A source file's own import line survives.** `diagram-shared.js`'s `import anime` isn't its first line, so a "strip the first line" approach misses it. Strip by pattern and assert the result.
 - **The exported copy is stale.** Regenerate it after any diagram change. Nothing detects drift automatically.
 - **A Ghost theme overrides the sizes.** Its own paragraph and button rules can beat yours. Use higher specificity, and note that the HTML card's handling of the module script was never tested against a real Ghost site.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

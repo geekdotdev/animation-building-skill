@@ -67,3 +67,7 @@ Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the e
 3. Add it to `ICONOGRAPHY` with a one-line comment that says what it depicts.
 4. Add a row here, with a real use if there is one.
 5. If it needs a shape `createCrawlerElement` doesn't draw, add that shape there first.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

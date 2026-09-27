@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // A small, valid descriptor for testing the validator. Generic on purpose: a client
 // connects to a server, and a second client publishes once the first is connected.
 export default {

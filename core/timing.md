@@ -56,3 +56,7 @@ A target with no gestures can't run a user-paced phase. It must declare how to r
 ## 7. Measuring timing
 
 Timestamp the event log's lines in the running application, replay, and compare paired events. For convergent sequences the differences between paired lines (each request and its answer, and the final "authenticated") should be **0 ms**. For a single flow, differences between consecutive lines are the legs you set. A console recipe for one environment is in `examples/nats-nkey-demo/environment.md`.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*

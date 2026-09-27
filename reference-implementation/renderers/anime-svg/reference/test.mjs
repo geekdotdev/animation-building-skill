@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Tests that the reference stylesheet and helpers keep meeting the markup contract, and stay in step with the
 // skeleton that uses them. Run: node test.mjs
 import assert from "node:assert/strict";

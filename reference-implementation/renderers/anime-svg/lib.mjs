@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Charlie Federspiel
+// SPDX-License-Identifier: MIT
 // Small helpers shared by the anime.js renderer's tools (test/build-site.mjs and export/export.mjs).
 import fs from "node:fs";
 import path from "node:path";

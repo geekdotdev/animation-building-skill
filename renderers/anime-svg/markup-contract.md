@@ -96,3 +96,7 @@ Geometry: whether a zone contains its members and docked volumes, whether a chan
 5. Run `markup/check.mjs`, then the descriptor validator, then the test-page builder, and look at it in a browser. Measure the geometry the checker doesn't.
 
 Never edit the ids to make a check pass without changing the descriptor's `element` to match: the two must agree.
+
+---
+
+*Licensed under MIT. © 2026 Charlie Federspiel.*
