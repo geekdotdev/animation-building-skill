@@ -1,0 +1,56 @@
+<!-- Skeleton diagram. Copy this file and diagram.animation.js, rename the diagram label (here `skeleton`) in
+     every id below and in the descriptor's `diagramLabel`, and replace the content. The structure is the
+     markup contract: see renderers/anime-svg/markup-contract.md. Every id is `<name>-<diagram-label>`. -->
+<div class="diagram" id="diagram-skeleton">
+  <!-- The viewBox starts at 0 0. Never a negative origin: shift the coordinates instead. -->
+  <svg viewBox="0 0 600 330" role="img" aria-label="A client asks a server for a page. The server has loaded its configuration from a shared volume.">
+
+    <!-- A ZONE: drawn first so it paints behind what it encloses. It must contain its members and the volume
+         that docks into it (at its final position), and no line between non-members may cross it. -->
+    <rect id="dg-zone-trusted-skeleton" class="diagram-zone" x="360" y="25" width="200" height="150" rx="10"></rect>
+    <text class="diagram-zone-label" x="368" y="39">Trusted network</text>
+
+    <!-- A GROUP NODE (`group: true` in the descriptor): the source of a volume. Volumes start overlapping it. -->
+    <g id="dg-init-source-skeleton">
+      <rect class="diagram-box" x="25" y="60" width="150" height="110" rx="8"></rect>
+      <text class="diagram-label" x="100" y="80" text-anchor="middle">Config source</text>
+    </g>
+
+    <!-- A VOLUME: a <g> whose id starts with `dg-vol-`. It sits at its START position, and the descriptor's
+         `offset` says how far it moves to dock. Start (35,105); it docks at (385,135): offset { x: 350, y: 30 }. -->
+    <g id="dg-vol-config-skeleton">
+      <rect class="diagram-volume" x="35" y="105" width="110" height="22" rx="4"></rect>
+      <text class="diagram-volume-label" x="90" y="116" text-anchor="middle" dominant-baseline="central">server config</text>
+    </g>
+
+    <!-- A BOX NODE: a shape (a <rect>), because a box that glows animates its stroke. -->
+    <rect id="dg-box-server-skeleton" class="diagram-box" x="380" y="60" width="150" height="60" rx="8"></rect>
+    <text class="diagram-label" x="455" y="94" text-anchor="middle">Server</text>
+
+    <!-- A GESTURE NODE: a <g> the viewer presses, with tabindex, role="button", and a `diagram-hint` text that
+         the interpreter fills in. Its box is inside. -->
+    <g id="dg-node-client-skeleton" tabindex="0" role="button" aria-label="Ask the server for a page">
+      <rect class="diagram-box" x="380" y="230" width="150" height="60" rx="8"></rect>
+      <text class="diagram-label" x="455" y="257" text-anchor="middle">Client</text>
+      <text class="diagram-hint" x="455" y="274" text-anchor="middle"></text>
+    </g>
+
+    <!-- A STATIC CHANNEL: visible from the start (diagram-line-static). One <path>. Its direction is the path's:
+         `forward` is from the path's first point to its last. -->
+    <path id="dg-line-source-server-skeleton" class="diagram-line diagram-line-static" d="M175,90 L380,90"></path>
+
+    <!-- A HIDDEN CHANNEL: a plain diagram-line starts hidden until a `reveal` action shows it. This one carries the
+         crawlers (the descriptor's moves), so `forward` is client to server. It has a label and a style
+         (diagram-line-mtls). Both start hidden and appear with the line. -->
+    <path id="dg-line-client-server-skeleton" class="diagram-line diagram-line-mtls" d="M515,230 L515,120"></path>
+    <text id="dg-line-client-server-label-skeleton" class="diagram-line-label" x="522" y="200" dominant-baseline="central">TLS</text>
+  </svg>
+
+  <!-- The event log: the interpreter writes each narration line here. -->
+  <div class="diagram-log" id="diagram-skeleton-log"></div>
+
+  <!-- The footer: Replay, and the mode switch, which the interpreter adds when the descriptor allows it. -->
+  <div class="diagram-footer">
+    <button class="diagram-replay" type="button" id="diagram-skeleton-replay">&#9654; Replay</button>
+  </div>
+</div>

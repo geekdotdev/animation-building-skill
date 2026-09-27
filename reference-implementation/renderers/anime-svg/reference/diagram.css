@@ -1,0 +1,46 @@
+/* Reference stylesheet for the anime.js interpreter: what renderers/anime-svg/markup-contract.md section 4 asks
+   for, plus a plain look for the classes the skeleton uses. It stands alone: it needs no host page, wrapper or
+   theme. Copy it and change the look. The rules marked BEHAVIOR are the contract, and the rest is taste. */
+
+.diagram, .diagram * { box-sizing: border-box; }
+
+/* The root. A standalone diagram is a centred card that scales with its container. */
+.diagram { position: relative; width: 100%; max-width: 1100px; margin: 1.5rem auto; padding: 1rem 1rem 0.5rem; background: #fff; border: 1px solid #ddd; border-radius: 8px; font-family: sans-serif; }
+.diagram svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* The event log, over the diagram's lower-left corner. */
+.diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: rgba(255, 255, 255, 0.94); border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
+.diagram-log p { margin: 0 0 0.2rem; }
+.diagram-log p:last-child { margin-bottom: 0; }
+
+/* The footer: Replay, and the mode switch the interpreter adds. */
+.diagram-footer { display: flex; align-items: center; justify-content: flex-end; margin-top: 0.5rem; }
+.diagram-replay { margin: 0; padding: 0.3rem 0.85rem; font-size: 0.8rem; cursor: pointer; }
+
+/* Things drawn in the SVG. */
+.diagram-box { fill: #f8f8f8; stroke: #999; stroke-width: 1.5; }
+.diagram-label { font: 600 12px sans-serif; fill: #333; }
+.diagram-sublabel { font: 500 10px sans-serif; fill: #555; }
+.diagram-hint { font: 500 9px sans-serif; font-style: italic; fill: #888; pointer-events: none; } /* BEHAVIOR: ignores the pointer, since it sits over a pressable node */
+.diagram-volume { fill: #ffe9b3; stroke: #d9a441; stroke-width: 1.5; }
+.diagram-volume-label { font: 600 8.5px sans-serif; fill: #6b4c00; pointer-events: none; }
+.diagram-zone { fill: none; stroke: #888; stroke-width: 1.5; stroke-dasharray: 6 4; }
+.diagram-zone-label { font: italic 500 10px sans-serif; fill: #777; }
+
+/* BEHAVIOR: a volume moves and scales from its own centre, not from the SVG's origin. Without this, docking looks wrong. */
+[id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }
+
+/* BEHAVIOR: a channel starts hidden, and a `reveal` fades it in. A static channel is visible from the start, so
+   `.diagram-line-static` must come AFTER `.diagram-line`: they have the same specificity. */
+.diagram-line { fill: none; stroke: #222; stroke-width: 2; stroke-linecap: round; opacity: 0; }
+.diagram-line-mtls { stroke: #00838f; }
+.diagram-line-static { opacity: 1; }
+.diagram-line-label { font: italic 500 10px sans-serif; fill: #00838f; pointer-events: none; opacity: 0; } /* BEHAVIOR: hidden until its line is revealed */
+
+/* BEHAVIOR: a crawler is hidden until the helper draws it (createCrawlerElement makes it visible). */
+.diagram-crawler { opacity: 0; }
+
+/* BEHAVIOR: the interpreter adds these two classes. */
+.diagram-glow { filter: drop-shadow(0 0 4px rgba(255, 159, 28, 0.9)); } /* the acknowledge glow on a box or a line */
+.diagram-clickable { cursor: pointer; } /* a gesture node that is armed */
+.diagram-clickable:hover .diagram-box, .diagram-clickable:focus-visible .diagram-box { stroke: #333; stroke-width: 2; }
