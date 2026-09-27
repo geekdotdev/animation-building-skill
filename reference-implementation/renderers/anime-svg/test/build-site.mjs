@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { extractDiagram, resolveInputs, UsageError } from "../lib.mjs";
+import { extractDiagram, resolveInputs, UsageError, gitAuthor } from "../lib.mjs";
 import { checkMarkup, checkStylesheet, checkHelpers } from "../markup/check.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const arg = (n) => { const i = process.argv.indexOf(n); return i < 0 ? null : process.argv[i + 1]; };
@@ -62,6 +62,7 @@ import { startDriver } from '/driver.js';
 import d from '/descriptor.animation.js';
 const mode = new URLSearchParams(location.search).get('mode') || undefined;   // automated | user-driven, else the descriptor's default
 const pace = Number(new URLSearchParams(location.search).get('pace')) || undefined;   // ?pace=2 is twice as slow, 0.5 twice as fast, else the descriptor's
-startDriver(${JSON.stringify(label)}, async (onEvent) => { window.__interp = createInterpreter(d, { anime, ...shared, onEvent, mode, pace }); window.__interp.start(); });
+const watermarkAuthor = ${JSON.stringify(gitAuthor())};   // this machine's git identity (git var GIT_AUTHOR_IDENT), if a watermark needs a fallback
+startDriver(${JSON.stringify(label)}, async (onEvent) => { window.__interp = createInterpreter(d, { anime, ...shared, onEvent, mode, pace, watermarkAuthor }); window.__interp.start(); });
 </script>`);
 console.log("site written to", out);

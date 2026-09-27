@@ -86,7 +86,7 @@ t("assembleScript (inline): no import or export left, and it parses", () => {
   const s = assembleScript({ ...parts, assets: { anime: "inline" } });
   assert.ok(!/^import|^export/m.test(s));
   new Function(s); // syntax only: it is never run
-  assert.ok(s.trimEnd().endsWith("createInterpreter(descriptor, { anime, ...shared }).start();"));
+  assert.match(s.trimEnd(), /createInterpreter\(descriptor, \{ anime, \.\.\.shared, watermarkAuthor: (null|"[^"]*") \}\)\.start\(\);$/);
 });
 t("assembleScript (cdn): exactly one import, the CDN one", () => {
   const s = assembleScript({ ...parts, assets: { anime: "cdn" }, animeUrl: "https://cdn.example/anime.js" });
@@ -225,7 +225,7 @@ t("buildExport: replay:false hides Replay, and a custom template is honored", ()
 import skeletonDescriptor from "../skeleton/diagram.animation.js";
 import { REQUIRED_CLASSES } from "../markup/check.mjs";
 const skeletonHtml = fs.readFileSync(path.join(HERE, "../skeleton/diagram.html"), "utf8");
-const contractCss = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }';
+const contractCss = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }';
 const contractJs = "import anime from '/vendor/a.js';\nexport function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() { return anime; }\n";
 const full = (o = {}) => ({ markup: skeletonHtml, sharedCss: contractCss, sharedJs: contractJs, animeSrc: parts.animeSrc, animeVersion: "3.2.2", interpreterSrc, descriptor: skeletonDescriptor, templates, profile: good, ...o });
 t("buildExport with every check on: the skeleton exports, with only the placeholder warnings", () => {

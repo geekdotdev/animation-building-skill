@@ -18,6 +18,9 @@
 // NOT covered (needs a browser, or a judgement this file can't make): zone geometry
 // measured from the rendered SVG, lane/phase reset behaviour, and whether a `source:` is true.
 //
+// A move, divergence, or arrival names an `asset` (one) or `assets` (a composite crawler, >= 2 names;
+// core/descriptor.md section 3.1). `box` is valid only alongside `assets`.
+//
 // The format extensions proposed in the worked example's FINDINGS.md (F1 `element`, F3 `delay`,
 // F6 `hide`, F9 rule-level `when` guard, F10 `dock` and `completed`, F15 derived consequences)
 // are accepted, and are marked "proposed" below so they can be removed if the user rejects them.
@@ -29,8 +32,8 @@ import { pathToFileURL } from "node:url";
 const FIDELITY = ["faithful", "adapted", "metaphor"];
 const TIMEBOX = ["timed", "event-bounded", "user-paced", "open-ended"];
 const DIRECTIONS = ["forward", "return"];
-const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "durations", "datums", "lanes", "sequences", "overlays", "modes", "markup", "pace"];
-const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */];
+const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "durations", "datums", "lanes", "sequences", "overlays", "modes", "markup", "pace", "strict", "watermark"];
+const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */, "store" /* strict mode: core/descriptor.md section 3.2 */];
 const ACTION_MODIFIERS = ["after", "duration", "name"]; // `duration` and `name` are used by `dock` and `hide` (proposed)
 
 export function validate(d, opts = {}) {
@@ -68,6 +71,7 @@ export function validate(d, opts = {}) {
     else if (path.isAbsolute(d.markup)) err("markup", "markup", "markup must be a path relative to the descriptor, not an absolute one");
     else if (opts.baseDir !== undefined && !fs.existsSync(path.resolve(opts.baseDir, d.markup))) err("markup", "markup", `markup file not found: ${path.resolve(opts.baseDir, d.markup)}`);
   }
+  if (d.strict !== undefined && typeof d.strict !== "boolean") err("shape", "strict", "strict must be true or false");
   for (const k of ["nodes", "channels", "datums", "lanes", "sequences"]) if (!Array.isArray(d[k])) err("shape", k, `${k} must be an array`);
   if (out.some((f) => f.level === "error" && f.code === "shape")) return out;
   d = { zones: [], volumes: [], durations: {}, overlays: [], ...d };
@@ -75,6 +79,7 @@ export function validate(d, opts = {}) {
   // ---- 1. names, uniqueness, references ---------------------------------------
   const dupes = (list, what) => { const seen = new Set(); for (const x of list) { if (!x || typeof x.name !== "string") { err("shape", what, "an entry has no name"); continue; } if (seen.has(x.name)) err("duplicate", `${what} ${x.name}`, "duplicate name"); seen.add(x.name); } return seen; };
   const nodes = dupes(d.nodes, "node"), chans = dupes(d.channels, "channel"), vols = dupes(d.volumes, "volume"), datums = dupes(d.datums, "datum"), lanes = dupes(d.lanes, "lane");
+  const chanObj = new Map(d.channels.map((c) => [c.name, c]));
   dupes(d.sequences, "sequence");
   const durs = new Set(Object.keys(d.durations));
   const both = [...nodes].filter((n) => chans.has(n)); // reveal/acknowledge targets are looked up across kinds
@@ -82,6 +87,25 @@ export function validate(d, opts = {}) {
   const targets = new Set([...nodes, ...chans]);
   const gestureNodes = new Set(d.nodes.filter((n) => n.gesture).map((n) => n.name));
   const assets = opts.assets ? new Set(opts.assets) : null;
+
+  // A move, divergence or arrival names what it carries as `asset` (one) or `assets` (a composite of two
+  // or more, travelling together as one crawler — core/ontology.md, Composite crawler). Exactly one.
+  const carriedOf = (x, where) => {
+    if ((x.asset !== undefined) === (x.assets !== undefined)) { err("shape", where, "needs exactly one of asset or assets"); return null; }
+    if (x.asset !== undefined) return [x.asset];
+    if (!Array.isArray(x.assets) || x.assets.length < 2) { err("shape", where, "assets must be an array of at least two asset names (a single one is `asset`)"); return null; }
+    return x.assets;
+  };
+  const checkBox = (x, where, list) => {
+    if (x.box === undefined) return;
+    if (list && list.length < 2) err("shape", where, "box only applies to a composite crawler (assets)");
+    else if (typeof x.box !== "boolean") err("shape", where, "box must be true or false");
+  };
+  const checkSpacing = (x, where, list) => {
+    if (x.spacing === undefined) return;
+    if (list && list.length < 2) err("shape", where, "spacing only applies to a composite crawler (assets)");
+    else if (typeof x.spacing !== "number" || !Number.isFinite(x.spacing) || x.spacing < 0) err("shape", where, "spacing must be a non-negative number (diagram units between each shape's centre)");
+  };
 
   for (const c of d.channels) {
     if (!nodes.has(c.a) || !nodes.has(c.b)) err("unresolved", `channel ${c.name}`, `endpoint ${!nodes.has(c.a) ? c.a : c.b} is not a node`);
@@ -92,7 +116,8 @@ export function validate(d, opts = {}) {
     const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] };
     arr(m.nodes).forEach((n) => nodes.has(n) || err("unresolved", `zone ${z.name}`, `member ${n} is not a node`));
     arr(m.volumes).forEach((v) => vols.has(v) || err("unresolved", `zone ${z.name}`, `member ${v} is not a volume`));
-    if (arr(m.nodes).length < 1) warn("zone", `zone ${z.name}`, "a zone with no member nodes");
+    // a watermark's zone is expected to have no members (it's an attribution box, not a trust boundary)
+    if (arr(m.nodes).length < 1 && d.watermark?.zone !== z.name) warn("zone", `zone ${z.name}`, "a zone with no member nodes");
     // a volume docked at a member node belongs in the zone (core/ontology.md), so check it is listed
     for (const v of d.volumes) if (arr(m.nodes).includes(v.consumer) && !arr(m.volumes).includes(v.name)) warn("zone", `zone ${z.name}`, `volume ${v.name} docks at member ${v.consumer} but is not a member of the zone`);
   }
@@ -121,7 +146,8 @@ export function validate(d, opts = {}) {
     else if (x.arrival) {
       chans.has(x.arrival.channel) || err("unresolved", where, `arrival channel ${x.arrival.channel} is not defined`);
       DIRECTIONS.includes(x.arrival.direction) || err("shape", where, `arrival direction must be forward or return`);
-      if (assets && !assets.has(x.arrival.asset)) err("unknown-asset", where, `asset ${x.arrival.asset} is not in the iconography`);
+      const list = carriedOf(x.arrival, `${where} arrival`);
+      if (list && assets) list.forEach((a) => assets.has(a) || err("unknown-asset", where, `asset ${a} is not in the iconography`));
     } else if (x.gesture !== undefined) gestureNodes.has(x.gesture) || err("unresolved", where, `gesture on ${x.gesture}, which is not a node with gesture: true`);
     else if (x.completed !== undefined) dockNames.has(x.completed) || err("unresolved", where, `completed ${x.completed} names no dock action`); // proposed F10
     else if (x.delay !== undefined) { if (!(x.delay >= 0)) err("duration", where, "delay must be a non-negative number"); } // proposed F3
@@ -137,7 +163,10 @@ export function validate(d, opts = {}) {
   }
 
   // ---- 3. sequences, rules, actions -------------------------------------------
-  const moves = [];        // { lane, phase, seq, channel, direction, asset, dur, trigger }
+  const moves = [];        // { lane, phase, seq, channel, direction, assets, origin, destination, dur, trigger }
+  const stores = [];       // { at, assets } — strict mode: core/descriptor.md section 3.2
+  // A channel move's two ends, named by what a `forward`/`return` transition means for each (core/ontology.md).
+  const endpoints = (chName, direction) => { const c = chanObj.get(chName); if (!c) return {}; return direction === "forward" ? { origin: c.a, destination: c.b } : { origin: c.b, destination: c.a }; };
   const arrivalRules = []; // { lane, seq, ... }
   const used = new Set();  // datums that something reacts to (derived consequences, proposed F15)
   const useCond = (c) => walk(c, "", (x) => { if (x.datum !== undefined) used.add(x.datum); });
@@ -178,9 +207,24 @@ export function validate(d, opts = {}) {
               chans.has(v.channel) || err("unresolved", rw, `move channel ${v.channel} is not defined`);
               DIRECTIONS.includes(v.direction) || err("shape", rw, "move direction must be forward or return");
               checkDur(v.duration, `${rw} move`);
-              if (assets && !assets.has(v.asset)) err("unknown-asset", rw, `asset ${v.asset} is not in the iconography`);
-              moves.push({ lane: s.lane, phase: s.phase, seq: s.name, channel: v.channel, direction: v.direction, asset: v.asset, dur: resolveDur(v.duration, v.channel), trigger, inRepeat });
-            } else if (v.from && v.to) { nodes.has(v.from) && nodes.has(v.to) || err("unresolved", rw, "move from/to must be nodes"); checkDur(v.duration, `${rw} move`); }
+              const list = carriedOf(v, `${rw} move`);
+              if (list) {
+                if (assets) list.forEach((a) => assets.has(a) || err("unknown-asset", rw, `asset ${a} is not in the iconography`));
+                checkBox(v, `${rw} move`, list);
+                checkSpacing(v, `${rw} move`, list);
+                moves.push({ lane: s.lane, phase: s.phase, seq: s.name, channel: v.channel, direction: v.direction, assets: list, ...endpoints(v.channel, v.direction), dur: resolveDur(v.duration, v.channel), trigger, inRepeat });
+              }
+            } else if (v.from && v.to) {
+              nodes.has(v.from) && nodes.has(v.to) || err("unresolved", rw, "move from/to must be nodes");
+              checkDur(v.duration, `${rw} move`);
+              const list = carriedOf(v, `${rw} move`);
+              if (list) {
+                if (assets) list.forEach((a) => assets.has(a) || err("unknown-asset", rw, `asset ${a} is not in the iconography`));
+                checkBox(v, `${rw} move`, list);
+                checkSpacing(v, `${rw} move`, list);
+                moves.push({ lane: s.lane, phase: s.phase, seq: s.name, channel: undefined, direction: undefined, assets: list, origin: v.from, destination: v.to, dur: resolveDur(v.duration, "none"), trigger, inRepeat });
+              }
+            }
             else err("shape", rw, "a move needs a channel, or from and to");
           } else if (kind === "reveal" || kind === "hide") {
             arr(v).forEach((n) => targets.has(n) || err("unresolved", rw, `${kind} ${n} is not a node or channel`));
@@ -191,11 +235,21 @@ export function validate(d, opts = {}) {
           else if (kind === "narrate") { typeof v === "string" || err("shape", rw, "narrate must be a static string"); }
           else if (kind === "repeat") { checkDur(v.every, `${rw} repeat`); each(arr(v.do), true); }
           else if (kind === "dock") { arr(v).forEach((n) => vols.has(n) || err("unresolved", rw, `dock ${n} is not a volume`)); checkDur(a.duration, `${rw} dock`); } // proposed F10
+          else if (kind === "store") {
+            // Strict mode (core/descriptor.md section 3.2): the one way a node comes to hold an asset that
+            // didn't just arrive there over a channel — "created itself" or "received from a docked volume"
+            // are both just a store fired by whatever rule states the reason (an arrival, a dock completing,
+            // start, a gesture, a datum). No separate node or volume field: the reason is the rule it's in.
+            nodes.has(v.at) || err("unresolved", rw, `store at ${v.at} is not a node`);
+            const list = carriedOf(v, `${rw} store`);
+            if (list) { if (assets) list.forEach((a) => assets.has(a) || err("unknown-asset", rw, `asset ${a} is not in the iconography`)); if (nodes.has(v.at)) stores.push({ at: v.at, assets: list }); }
+          }
           else if (kind === "divergence") {
             const br = arr(v.branches);
             if (!nodes.has(v.origin)) err("unresolved", rw, `divergence origin ${v.origin} is not a node`);
             if (br.length < 2) err("divergence", rw, "a divergence needs at least two branches");
-            if (assets && !assets.has(v.asset)) err("unknown-asset", rw, `divergence asset ${v.asset} is not in the iconography`);
+            const list = carriedOf(v, `${rw} divergence`);
+            if (list) { if (assets) list.forEach((a) => assets.has(a) || err("unknown-asset", rw, `divergence asset ${a} is not in the iconography`)); checkBox(v, `${rw} divergence`, list); checkSpacing(v, `${rw} divergence`, list); }
             const seen = new Set();
             for (const b of br) {
               if (!chans.has(b.channel)) { err("unresolved", rw, `divergence branch channel ${b.channel} is not defined`); continue; }
@@ -203,7 +257,7 @@ export function validate(d, opts = {}) {
               const ch = d.channels.find((c) => c.name === b.channel);
               const start = b.direction === "forward" ? ch.a : ch.b;
               if (start !== v.origin) err("divergence", rw, `branch ${key} starts at ${start}, not the declared origin ${v.origin}`);
-              moves.push({ lane: s.lane, phase: s.phase, seq: s.name, channel: b.channel, direction: b.direction, asset: v.asset, dur: resolveDur(b.duration, b.channel), trigger, inRepeat, divergence: true });
+              if (list) moves.push({ lane: s.lane, phase: s.phase, seq: s.name, channel: b.channel, direction: b.direction, assets: list, origin: v.origin, destination: endpoints(b.channel, b.direction).destination, dur: resolveDur(b.duration, b.channel), trigger, inRepeat, divergence: true });
             }
             if (v.sharedPrefix) warn("divergence", rw, "sharedPrefix is declared, and this validator does not check it: confirm every branch is in this rule's lane");
           }
@@ -239,9 +293,12 @@ export function validate(d, opts = {}) {
   for (const g of gestureRules) { if (!armedBy[g.node]?.has(g.lane + "/" + g.phase)) err("gesture", g.where, `fires on a click of ${g.node}, but phase ${g.lane}/${g.phase} does not arm it`); }
 
   // ---- 5. arrival triggers are fed, in the same lane -------------------------
-  for (const a of arrivalRules) if (!moves.some((m) => m.lane === a.lane && m.channel === a.channel && m.direction === a.direction && m.asset === a.asset))
-    err("dead-trigger", a.rule, `waits for ${a.asset} on ${a.channel}/${a.direction}, but no move in lane ${a.lane} sends it`);
-  for (const x of d.datums) walk(x.when, "", (c) => { if (c.arrival && !moves.some((m) => m.channel === c.arrival.channel && m.direction === c.arrival.direction && m.asset === c.arrival.asset)) err("dead-trigger", `datum ${x.name}`, `waits for ${c.arrival.asset} on ${c.arrival.channel}/${c.arrival.direction}, which no move sends`); });
+  // best-effort extraction with no side effects: carriedOf already reported a shape error, if any, above
+  const rawCarried = (x) => (x ? (Array.isArray(x.assets) ? x.assets : x.asset !== undefined ? [x.asset] : null) : null);
+  const listEq = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
+  for (const a of arrivalRules) { const list = rawCarried(a); if (list && !moves.some((m) => m.lane === a.lane && m.channel === a.channel && m.direction === a.direction && listEq(m.assets, list)))
+    err("dead-trigger", a.rule, `waits for ${list.join(" + ")} on ${a.channel}/${a.direction}, but no move in lane ${a.lane} sends it`); }
+  for (const x of d.datums) walk(x.when, "", (c) => { if (c.arrival) { const list = rawCarried(c.arrival); if (list && !moves.some((m) => m.channel === c.arrival.channel && m.direction === c.arrival.direction && listEq(m.assets, list))) err("dead-trigger", `datum ${x.name}`, `waits for ${list.join(" + ")} on ${c.arrival.channel}/${c.arrival.direction}, which no move sends`); } });
 
   // ---- 6. datum consequences and terminals -----------------------------------
   for (const x of d.datums) walk(x.when, "", () => {}), useCond(x.when);
@@ -257,9 +314,9 @@ export function validate(d, opts = {}) {
   for (const [c, ms] of Object.entries(byChan)) {
     const perLP = {}; ms.forEach((m) => (perLP[m.lane + "/" + m.phase] ||= new Set()).add(m.seq));
     for (const [lp, seqs] of Object.entries(perLP)) if (seqs.size > 1) err("shared-channel", `channel ${c}`, `sequences ${[...seqs].join(", ")} share it within lane/phase ${lp}: restructure so each channel belongs to one sequence there`);
-    const byLane = {}; ms.forEach((m) => (byLane[m.lane] ||= new Set()).add(m.asset));
+    const byLane = {}; ms.forEach((m) => (byLane[m.lane] ||= new Set()).add(JSON.stringify(m.assets)));
     const ls = Object.keys(byLane), pairs = [];
-    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) for (const a1 of byLane[ls[i]]) for (const a2 of byLane[ls[j]]) if (a1 !== a2) pairs.push(`${a1} (${ls[i]}) vs ${a2} (${ls[j]})`);
+    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) for (const a1 of byLane[ls[i]]) for (const a2 of byLane[ls[j]]) if (a1 !== a2) pairs.push(`${JSON.parse(a1).join(" + ")} (${ls[i]}) vs ${JSON.parse(a2).join(" + ")} (${ls[j]})`);
     if (ls.length > 1) conflicts[c] = { lanes: ls, pairs };
   }
   for (const [c, info] of Object.entries(conflicts)) {
@@ -301,18 +358,19 @@ export function validate(d, opts = {}) {
   const byTrigger = {}; moves.forEach((m) => (byTrigger[m.trigger] ||= []).push(m));
   let startpointsUnknown = false;
   for (const ms of Object.values(byTrigger)) {
-    const byAsset = {}; ms.forEach((m) => (byAsset[m.asset] ||= []).push(m));
-    for (const [asset, group] of Object.entries(byAsset)) {
+    const byAsset = {}; ms.forEach((m) => (byAsset[JSON.stringify(m.assets)] ||= []).push(m));
+    for (const [key, group] of Object.entries(byAsset)) {
+      const label = JSON.parse(key).join(" + ");
       const paths = [...new Map(group.map((m) => [m.channel + "/" + m.direction, m])).values()];
       if (paths.length < 2) continue;
       const seqs = [...new Set(group.map((m) => m.seq))].join(", ");
       const byPoint = {};
       for (const m of paths) { const p = startpoint(m.channel, m.direction); if (p === null) { startpointsUnknown = true; continue; } (byPoint[p] ||= []).push(m); }
       for (const [p, same] of Object.entries(byPoint)) {
-        if (same.length > 1 && !same.every((m) => m.divergence)) err("undeclared-divergence", `${asset} from ${seqs}`, `${asset} starts together at ${p} on ${same.map((m) => m.channel + "/" + m.direction).join(" and ")} without a divergence action: declare one, or start them from different triggers`);
+        if (same.length > 1 && !same.every((m) => m.divergence)) err("undeclared-divergence", `${label} from ${seqs}`, `${label} starts together at ${p} on ${same.map((m) => m.channel + "/" + m.direction).join(" and ")} without a divergence action: declare one, or start them from different triggers`);
       }
       // a declared divergence must have ONE startpoint
-      if (group.every((m) => m.divergence) && Object.keys(byPoint).length > 1) err("divergence", `${asset} from ${seqs}`, `a declared divergence's branches start at different points (${Object.keys(byPoint).join(" and ")}): that is two rules on one trigger, not a divergence`);
+      if (group.every((m) => m.divergence) && Object.keys(byPoint).length > 1) err("divergence", `${label} from ${seqs}`, `a declared divergence's branches start at different points (${Object.keys(byPoint).join(" and ")}): that is two rules on one trigger, not a divergence`);
     }
   }
   if (startpointsUnknown) warn("startpoint-unknown", "divergence check", "identical assets start together on different channels, but their startpoints can't be read (give the descriptor a `markup`, or pass --markup, and give each channel an `element`): the divergence check was skipped for them");
@@ -345,6 +403,61 @@ export function validate(d, opts = {}) {
       // the mode can be automated when it is the default or the viewer can switch to it
       if ((m.default === "automated" || m.toggle === true) && gestureNodes.size && s2 === undefined) err("modes", w, "the mode can be automated but the simulated-gesture acknowledgement (modes.simulated) is not declared: rule 18 requires a visible press");
       if (m.toggle === true && !gestureNodes.size) warn("modes", w, "a mode toggle with no gesture node has nothing to switch");
+    }
+  }
+
+  // ---- 9c. local shape storage (core/ontology.md "Local storage"; core/descriptor.md section 3.2) -------
+  // Tracking is always on, independent of `strict`: `store` actions and channel arrivals build up each
+  // node's local storage regardless, because the interpreter can display it (a node's `showLocalStorage`)
+  // whether or not anything enforces it. `strict: true` is only whether an unstored send is an ERROR.
+  //
+  // The check itself is a purely structural, non-temporal one: does SOME rule ever give this node this
+  // asset, anywhere in the descriptor — not whether it happens before this particular send in every run.
+  // That's what makes it a local shape check rather than a full dataflow analysis: no execution order is
+  // simulated, and storage only ever grows (nothing is spent or removed on send).
+  const holds = {}; // node name -> Set of asset names it can ever hold
+  const give = (node, list) => { if (!node || !list) return; (holds[node] ||= new Set()); list.forEach((a) => holds[node].add(a)); };
+  for (const st of stores) give(st.at, st.assets);
+  for (const m of moves) give(m.destination, m.assets);
+  if (d.strict === true) {
+    for (const m of moves) {
+      const have = holds[m.origin];
+      for (const a of m.assets) if (!have || !have.has(a))
+        err("strict", `${m.seq} (${m.channel ? `${m.channel}/${m.direction}` : `from ${m.origin}`})`,
+          `${m.origin} sends ${a}, but nothing gives it to ${m.origin} anywhere in the descriptor (no arrival ending there, and no store): add a store at '${m.origin}', or a move that delivers it there first`);
+    }
+  }
+
+  // `showLocalStorage` (optional, per node): the interpreter displays that node's held assets as small
+  // icons, overlaid on the node's own box or in an adjacent bounding box. Independent of `strict`.
+  for (const n of d.nodes) {
+    if (n.showLocalStorage === undefined) continue;
+    const s = n.showLocalStorage, w = `node ${n.name} showLocalStorage`;
+    if (!isObj(s)) { err("shape", w, "showLocalStorage must be an object, { position, offset? }"); continue; }
+    if (!["overlay", "adjacent"].includes(s.position)) err("shape", w, "position must be 'overlay' or 'adjacent'");
+    if (s.position === "overlay" && s.offset !== undefined) err("shape", w, "offset only applies to 'adjacent' (an overlay is centred on the node's own box)");
+    if (s.position === "adjacent" && (!isObj(s.offset) || typeof s.offset.x !== "number" || typeof s.offset.y !== "number")) err("shape", w, "adjacent needs an offset: { x, y }");
+  }
+
+  // ---- 9e. watermark (optional): attribution to the skill and the developer ---------------------
+  // Its position and size are a zone (with no members), reused rather than a new geometry-holding field —
+  // geometry stays in the SVG either way. Content and timing are the watermark's own.
+  if (d.watermark !== undefined) {
+    const w = d.watermark, ww = "watermark";
+    if (!isObj(w)) err("shape", ww, "watermark must be an object");
+    else {
+      for (const k of Object.keys(w)) if (!["zone", "repo", "author", "website", "fade"].includes(k)) warn("unknown-key", ww, `unknown key watermark.${k}`);
+      const z = d.zones.find((x) => x.name === w.zone);
+      if (typeof w.zone !== "string" || !w.zone) err("shape", ww, "watermark.zone is required: the name of the zone to use as its box");
+      else if (!z) err("unresolved", ww, `zone ${w.zone} is not defined`);
+      else { const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] }; if (arr(m.nodes).length || arr(m.volumes).length) err("shape", ww, `zone ${w.zone} has members: a watermark's zone must have none (it's an attribution box, not a trust boundary)`); }
+      if (w.repo !== undefined && typeof w.repo !== "boolean") err("shape", ww, "repo must be true or false");
+      if (w.author !== undefined && (typeof w.author !== "string" || !w.author.trim())) err("shape", ww, "author must be a non-empty string");
+      if (w.website !== undefined) {
+        if (typeof w.website !== "string" || !w.website.trim()) err("shape", ww, "website must be a non-empty string");
+        else if (!/^https?:\/\//.test(w.website)) warn("shape", ww, `website "${w.website}" doesn't start with http:// or https://: is that intended?`);
+      }
+      if (w.fade !== undefined && w.fade !== false && !(typeof w.fade === "number" && w.fade > 0)) err("shape", ww, "fade must be false (permanent) or a positive number of seconds");
     }
   }
 

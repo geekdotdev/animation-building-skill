@@ -110,7 +110,7 @@ t("an unclosed tag in the diagram is reported as a parse error", () => {
 });
 
 // ---- stylesheet and helpers ----
-const cssAll = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }';
+const cssAll = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }';
 t("checkStylesheet: a complete stylesheet is clean; a missing class or volume rule is a warning; comments don't count", () => {
   assert.deepEqual(checkStylesheet(cssAll, baseDescriptor), []);
   assert.deepEqual(codes(checkStylesheet(cssAll.replace(".diagram-glow", ".diagram-blaze"), baseDescriptor)), ["warning:stylesheet"]);
@@ -118,6 +118,15 @@ t("checkStylesheet: a complete stylesheet is clean; a missing class or volume ru
   assert.deepEqual(codes(checkStylesheet(cssAll.replace(".diagram-glow { x: 1; }", "/* .diagram-glow { x: 1; } */"), baseDescriptor)), ["warning:stylesheet"]);
   assert.deepEqual(checkStylesheet(cssAll.replace('[id^="dg-vol-"]', ".nope"), { ...baseDescriptor, volumes: [] }), []);
 });
+t("checkStylesheet: a composite crawler's box needs .diagram-crawler-box, only when box: true is actually used", () => {
+  // the skeleton itself uses a composite crawler with box: true (client-server, request+credential)
+  const noBox = structuredClone(baseDescriptor);
+  for (const s of noBox.sequences) for (const r of s.rules) for (const a of r.do) if (a.move?.box) delete a.move.box;
+  assert.deepEqual(checkStylesheet(cssAll, noBox), []); // no box used: no warning
+  assert.ok(codes(checkStylesheet(cssAll.replace("\n.diagram-crawler-box { x: 1; }", ""), baseDescriptor)).includes("warning:stylesheet"));
+  assert.deepEqual(checkStylesheet(cssAll, baseDescriptor), []); // cssAll already defines it
+});
+
 t("checkHelpers: each required export must be present", () => {
   const ok = "export function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() {}\n";
   assert.deepEqual(checkHelpers(ok), []);

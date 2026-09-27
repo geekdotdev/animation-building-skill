@@ -25,7 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { extractDiagram, resolveInputs, UsageError } from "../lib.mjs";
+import { extractDiagram, resolveInputs, UsageError, gitAuthor } from "../lib.mjs";
 import { validate } from "../../../core/validator/validate.mjs";
 import { checkMarkup, checkStylesheet, checkHelpers } from "../markup/check.mjs";
 import { SURFACE, BEHAVIOR_KEYS } from "./surface.mjs";
@@ -126,7 +126,7 @@ const safeInline = (text, what) => {
 // Compact JSON for a <script>: `<` is escaped so no string can close the tag, and the two line separators too.
 export const jsonForScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c").split(String.fromCharCode(0x2028)).join("\\u2028").split(String.fromCharCode(0x2029)).join("\\u2029");
 
-export function assembleScript({ assets, animeUrl, animeSrc, sharedJs, interpreterSrc, descriptor }) {
+export function assembleScript({ assets, animeUrl, animeSrc, sharedJs, interpreterSrc, descriptor, watermarkAuthor }) {
   const shared = stripModule(sharedJs, "diagram-shared.js");
   const interp = stripModule(interpreterSrc, "interpreter.js");
   if (!interp.names.includes("createInterpreter")) throw new Error("interpreter.js does not export createInterpreter");
@@ -136,7 +136,9 @@ export function assembleScript({ assets, animeUrl, animeSrc, sharedJs, interpret
   parts.push(`const shared = (function () {\n${safeInline(shared.code, "diagram-shared.js")}\nreturn { ${shared.names.join(", ")} };\n})();`);
   parts.push(`const { createInterpreter } = (function () {\n${safeInline(interp.code, "interpreter.js")}\nreturn { createInterpreter };\n})();`);
   parts.push(`const descriptor = ${jsonForScript(descriptor)};`);
-  parts.push("createInterpreter(descriptor, { anime, ...shared }).start();");
+  // A watermark's `author` fallback (core/descriptor.md §3.3): resolved once, from whoever ran the export,
+  // and baked in — the exported file is static and has no filesystem access of its own to re-resolve it.
+  parts.push(`createInterpreter(descriptor, { anime, ...shared, watermarkAuthor: ${jsonForScript(watermarkAuthor ?? null)} }).start();`);
   return parts.join("\n\n");
 }
 
@@ -252,7 +254,7 @@ export function buildExport(input, { allowOpen = false, skipValidate = false } =
   // `markup` is a build-time pointer to a local file: it stays out of the exported file.
   const embedded = structuredClone(descriptor);
   delete embedded.markup;
-  const script = assembleScript({ assets: profile.assets, animeUrl, animeSrc, sharedJs, interpreterSrc, descriptor: embedded });
+  const script = assembleScript({ assets: profile.assets, animeUrl, animeSrc, sharedJs, interpreterSrc, descriptor: embedded, watermarkAuthor: gitAuthor() });
   const presentation = profile.presentation ?? {};
   // The app's stylesheet sets `box-sizing: border-box` on everything, and the diagram's layout (its width
   // and padding) depends on it. A host page may not, so it is scoped to the diagram in every export.

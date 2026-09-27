@@ -9,7 +9,7 @@
 .diagram svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* The event log, over the diagram's lower-left corner. */
-.diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: rgba(255, 255, 255, 0.94); border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
+.diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
 .diagram-log p { margin: 0 0 0.2rem; }
 .diagram-log p:last-child { margin-bottom: 0; }
 
@@ -39,6 +39,16 @@
 
 /* BEHAVIOR: a crawler is hidden until the helper draws it (createCrawlerElement makes it visible). */
 .diagram-crawler { opacity: 0; }
+
+/* A composite crawler's optional bounding box (core/descriptor.md section 3.1, `box: true`). Only drawn when a
+   descriptor asks for one; light and dashed so it reads as a grouping, not another component. */
+.diagram-crawler-box { fill: none; stroke: #999; stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* A watermark's credit lines (core/descriptor.md section 3.3), injected into its zone. Small and quiet: it's
+   attribution, not part of the diagram's own story. A linked line (the skill, or the author's website) picks
+   up the surrounding link colour instead of a fixed one, so it reads as a link. */
+.diagram-watermark-text { font: 500 9px sans-serif; fill: #999; }
+.diagram-watermark a .diagram-watermark-text { fill: #1a5fb4; text-decoration: underline; cursor: pointer; }
 
 /* BEHAVIOR: the interpreter adds these two classes. */
 .diagram-glow { filter: drop-shadow(0 0 4px rgba(255, 159, 28, 0.9)); } /* the acknowledge glow on a box or a line */

@@ -36,7 +36,7 @@ t("every diagram-* class the skeleton's markup uses is defined by the stylesheet
 });
 t("the skeleton's assets are all in the reference iconography", () => {
   const used = new Set();
-  const walk = (o) => { if (o && typeof o === "object") { if (typeof o.asset === "string") used.add(o.asset); Object.values(o).forEach(walk); } };
+  const walk = (o) => { if (o && typeof o === "object") { if (typeof o.asset === "string") used.add(o.asset); if (Array.isArray(o.assets)) o.assets.forEach((x) => typeof x === "string" && used.add(x)); Object.values(o).forEach(walk); } };
   walk(skeleton);
   assert.ok(used.size >= 2);
   for (const a of used) assert.ok(assetNames.includes(a), `asset "${a}" is not in ICONOGRAPHY (${assetNames.join(", ")})`);

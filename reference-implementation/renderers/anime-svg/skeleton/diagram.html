@@ -44,6 +44,14 @@
          (diagram-line-mtls). Both start hidden and appear with the line. -->
     <path id="dg-line-client-server-skeleton" class="diagram-line diagram-line-mtls" d="M515,230 L515,120"></path>
     <text id="dg-line-client-server-label-skeleton" class="diagram-line-label" x="522" y="200" dominant-baseline="central">TLS</text>
+
+    <!-- A WATERMARK's zone (core/descriptor.md §3.3): a plain <rect>, no different from any other zone, except
+         it has no members and the descriptor's `watermark.zone` names it. The interpreter reads its x/y/width/
+         height directly and injects the credit text inside; nothing here needs to hold that text itself.
+         Placed at the top: the event log is an HTML overlay anchored to the bottom of the diagram (see
+         shared.css), covering the bottom-left in rendered pixels regardless of the SVG's own coordinates, so
+         the bottom of the canvas isn't a safe place for anything meant to stay visible or readable. -->
+    <rect id="dg-zone-credits-skeleton" class="diagram-zone" x="10" y="6" width="170" height="24" rx="4"></rect>
   </svg>
 
   <!-- The event log: the interpreter writes each narration line here. -->

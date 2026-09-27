@@ -55,6 +55,7 @@ Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the e
 
 ## Things worth noticing when you extend it
 
+- **A payload carrying more than one object is a composite crawler, not a new shape.** `zeroPermissionJwt` (hollow gold circle) and `signedNonceChallenge` (dark green circle, unused) merely share the circle shape, which isn't itself a problem — most single-token assets here are colour-coded circles. But this domain does have a real multi-object case: the CONNECT frame that carries both the zero-permission JWT and the access token was once drawn with the JWT's icon standing in for both, silently dropping the second object. Naming both assets on the move (`assets: [...]`, core/descriptor.md §3.1) instead is the fix; see FINDING F18 in the worked example's `FINDINGS.md`. Don't invent a new combined icon for a pairing that already has two icons of its own.
 - **Orange is used twice.** It is the `payload` asset and also the acknowledge glow. They are different kinds of thing (an asset and an effect), which is fine as long as they never appear as the same element.
 - **Teal is used for two ideas:** the spa-server request path, and the mTLS line. The seed treats them as related, but a new project might not.
 - **Four entries are unused.** Defining an asset before anything uses it is cheap. Whether to keep unused ones is a project decision.
