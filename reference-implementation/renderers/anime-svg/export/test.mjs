@@ -88,7 +88,7 @@ t("assembleScript (inline): no import or export left, and it parses", () => {
   const s = assembleScript({ ...parts, assets: { anime: "inline" } });
   assert.ok(!/^import|^export/m.test(s));
   new Function(s); // syntax only: it is never run
-  assert.match(s.trimEnd(), /createInterpreter\(descriptor, \{ anime, \.\.\.shared, watermarkAuthor: (null|"[^"]*") \}\)\.start\(\);$/);
+  assert.match(s.trimEnd(), /createInterpreter\(descriptor, \{ anime, \.\.\.shared \}\)\.start\(\);$/);
 });
 t("assembleScript (cdn): exactly one import, the CDN one", () => {
   const s = assembleScript({ ...parts, assets: { anime: "cdn" }, animeUrl: "https://cdn.example/anime.js" });

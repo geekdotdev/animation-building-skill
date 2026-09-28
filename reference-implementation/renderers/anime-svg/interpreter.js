@@ -394,8 +394,9 @@ export function createInterpreter(d, env) {
 
   // ---- watermark (core/descriptor.md section 3.3) -----------------------------
   // Attribution to the skill and, optionally, the developer. Its box is a zone (no members) named by
-  // `watermark.zone`; the credit lines are injected here, since an author's name from git config isn't
-  // known until the file is served (env.watermarkAuthor, resolved by whichever Node tool built the page).
+  // `watermark.zone`; the credit lines are injected here. The author name is only ever `watermark.author` —
+  // the agent authoring the descriptor states it explicitly (core/ontology.md section E, explicit intent);
+  // the interpreter does no host-environment interpolation to fill it in.
   let watermarkGroup = null;
   function startWatermark() {
     const w = d.watermark;
@@ -404,7 +405,7 @@ export function createInterpreter(d, env) {
     const rect = doc.querySelector(id(zone.element));
     const x = parseFloat(rect.getAttribute('x')), y = parseFloat(rect.getAttribute('y'));
     const width = parseFloat(rect.getAttribute('width')), height = parseFloat(rect.getAttribute('height'));
-    const author = w.author ?? env.watermarkAuthor;
+    const author = w.author;
     const lines = [];
     // "Coordinated by Claude": Claude authors within a fixed, developer-defined format and rule set
     // (the ontology, the validator, this interpreter's own contract) — not a free-form "AI-generated"

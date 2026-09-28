@@ -155,8 +155,8 @@ watermark: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://
 |---|---|
 | `zone` | Required: the name of a zone to use as the box. That zone must have **no members** — an attribution box, not a trust boundary. |
 | `repo` | Optional, default `true`: a credit line naming this skill. `false` omits it. |
-| `author` | Optional. **Omitted, it falls back to whatever the host resolves as this machine's git identity** at build or serve time (`git var GIT_AUTHOR_IDENT`: config if set, else `GIT_AUTHOR_NAME`, else the OS account's own name — the same resolution `git commit` itself uses, not just the global config file, which can be empty even when git would still attribute a commit to someone) — the renderer itself has no filesystem access, so a Node-side tool resolves it and passes it in. With no descriptor value and nothing resolvable either, the author line is left out rather than showing a placeholder. |
-| `website` | Optional. If given alongside an author (from either source), the author's name becomes a link to it. |
+| `author` | Optional, and the only source: the agent authoring the descriptor states it explicitly (`core/ontology.md` §E, explicit intent) if the watermark should credit someone. The renderer does no host-environment interpolation to fill this in — no git-identity lookup, nothing implicit — so it stays correct however the descriptor ends up served: exported to a static file, loaded straight into `createInterpreter` by a hand-wired host page, or anything else. Omitted, the author line is simply left out. |
+| `website` | Optional. If given alongside `author`, the author's name becomes a link to it. |
 | `fade` | Optional: seconds until it fades out, once, after the diagram starts. `false` (the default if omitted) means **permanent**: it stays visible for the whole run. |
 
 - **Visible on start**, always — there's no "reveal" for a watermark; it's already there in the SVG.
