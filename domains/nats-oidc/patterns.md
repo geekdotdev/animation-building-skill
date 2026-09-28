@@ -83,7 +83,7 @@ Two variants. Only the steps differ.
 ## 5. Key-bound JWT issuance (proof of possession)
 
 **Intent.** The browser gets a NATS JWT bound to a key it holds and never reveals.
-**Fidelity (suggested).** `faithful`. Source: spa-server's `/api/zero-permission-user-identity` route and the zero-permission signing service.
+**Fidelity (suggested).** `faithful`. Source: spa-server's `/api/secure/zero-permission-user-identity` route and the zero-permission signing service.
 **Lane and timebox.** The user session. It is user-paced: it starts on a gesture and its exit datum is "Browser holds a zero-permission JWT".
 
 **Steps (example diagram 5).**

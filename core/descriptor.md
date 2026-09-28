@@ -23,6 +23,7 @@ export default {
   markup: 'gateways/callout-pop-zero-permission-gateway.html',   // the diagram's SVG, a path relative to this file
   title: 'Auth-Callout: BFF-Initiated SPA Login, PoP Zero Permission',
   nodes: [ … ], channels: [ … ], zones: [ … ], volumes: [ … ],
+  eventLog: { element: 'log' },
   durations: { … },
   datums: [ … ], lanes: [ … ], sequences: [ … ],
   overlays: [ … ],
@@ -39,6 +40,7 @@ export default {
 | `channels` | `{ name, a, b, duration, visibility, style?, label?, authenticated?, authenticatedBy? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. `authenticated: false` declares the channel's authentication as a tracked state (starts false, like `visibility` starts hidden); `authenticatedBy` names the datum whose `acknowledge` targets this channel — that's what sets it `true`. Both optional, and `authenticatedBy` is required whenever `authenticated` is declared. Declaring this doesn't gate anything by itself: nothing currently requires a move onto an `authenticated` channel to check it. | channel, line |
 | `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as a watermark's box (§3.3). | zone |
 | `volumes` | `{ name, label, consumer, offset }`. The start position stays in the SVG. The offset is the docking move. | metaphor asset |
+| `eventLog` | `{ element }`. Required. Declares the diagram's narration log as an explicit construct rather than an assumed part of the markup contract — `element` names it the same way every other construct is named, so the validator can check it resolves. Its id and class convention (`diagram-<diagram-label>-log`, class `diagram-log`) is fixed by the markup contract and doesn't vary by `element`'s value; geometry and position stay out of the descriptor, same as everywhere else — on a narrow viewport (600px or less) it moves out of its overlay position to sit below the diagram, a hard rule with no per-diagram opt-out. | event log |
 | `durations` | Named durations, optionally linked: `{ handshakeLeg: { link: 'channel:logging-client' } }`. | timebox, convergence |
 | `datums` | See §4. | datum |
 | `lanes` | See §5. | lane, phase |

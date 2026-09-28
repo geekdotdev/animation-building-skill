@@ -98,7 +98,7 @@ t("pace: a string is an error", (d) => { d.pace = "2"; }, ["error:pace"]);
 t("pace: more than ten times off is a warning", (d) => { d.pace = 50; }, ["warning:pace"]);
 t("pace: less than a tenth is a warning", (d) => { d.pace = 0.05; }, ["warning:pace"]);
 t("unknown asset (with an iconography)", () => {}, Array(6).fill("error:unknown-asset"), { assets: ["nothing"] });
-t("element missing from the markup", () => {}, ["error:markup", "error:markup", "error:markup", "error:markup", "error:markup"], { markup: "<svg></svg>" });
+t("element missing from the markup", () => {}, ["error:markup", "error:markup", "error:markup", "error:markup", "error:markup", "error:markup", "error:markup"], { markup: "<svg></svg>" });
 t("unknown action", (d) => { d.sequences[0].rules[0].do.push({ explode: true }); }, ["error:shape"]);
 t("narrate must be static", (d) => { d.sequences[0].rules[0].do.push({ narrate: 3 }); }, ["error:shape"]);
 
@@ -110,7 +110,7 @@ const strictBase = () => ({
   version: 1, diagramLabel: "strict-mini", title: "Strict test",
   nodes: [{ name: "a", element: "dg-a" }, { name: "b", element: "dg-b" }],
   channels: [{ name: "a-b", element: "dg-line", a: "a", b: "b", duration: 500, visibility: "hidden" }],
-  zones: [], volumes: [], durations: {},
+  zones: [], volumes: [], eventLog: { element: "log" }, durations: {},
   datums: [{ name: "started", label: "Started", when: { start: true }, terminal: true }],
   lanes: [{ name: "main", subject: "s", entry: { start: true }, phases: [{ name: "p", timebox: "open-ended" }] }],
   sequences: [{ name: "seq", lane: "main", phase: "p", fidelity: "faithful", source: "s", rules: [
@@ -266,6 +266,24 @@ t("validatorExceptions: reason must be a non-empty string", (d) => { shared(d); 
 t("validatorExceptions: unrecognized reason value still exempts, with a warning", (d) => { shared(d); d.overlays = [{ channel: "server-client", lanes: ["client", "other"], precedence: "unresolved" }]; d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "becauseISaidSo" }]; }, ["warning:validator-exception"]);
 t("validatorExceptions: stale (no conflict on that channel)", (d) => { d.validatorExceptions = [{ check: "overlay", channel: "server-other", reason: "temporallySeparated" }]; }, ["warning:validator-exception"]);
 t("validatorExceptions: exempted but no overlays entry documents it", (d) => { shared(d); d.validatorExceptions = [{ check: "overlay", channel: "server-client", reason: "temporallySeparated" }]; }, ["warning:overlay"]);
+
+// eventLog (core/descriptor.md §2, ontology rule 27): declared explicitly, required, checked
+// against the markup's fixed diagram-<label>-log id / diagram-log class convention.
+t("eventLog: missing is an error", (d) => { delete d.eventLog; }, ["error:shape"]);
+t("eventLog: must be an object", (d) => { d.eventLog = "log"; }, ["error:shape"]);
+t("eventLog: element must be a non-empty string", (d) => { d.eventLog.element = ""; }, ["error:shape"]);
+t("eventLog: element must be a string, not a number", (d) => { d.eventLog.element = 1; }, ["error:shape"]);
+const fullMarkup = (log) => `
+  <rect id="dg-box-server-mini"></rect>
+  <g id="dg-node-client-mini"></g>
+  <rect id="dg-box-other-mini"></rect>
+  <path id="dg-line-client-mini"></path>
+  <path id="dg-line-other-mini"></path>
+  ${log}
+`;
+t("eventLog: resolves against the markup", (d) => {}, [], { markup: fullMarkup('<div id="diagram-mini-log" class="diagram-log"></div>') });
+t("eventLog: id missing from the markup", (d) => {}, ["error:markup"], { markup: fullMarkup('<div class="diagram-log"></div>') });
+t("eventLog: class missing from the markup", (d) => {}, ["error:markup"], { markup: fullMarkup('<div id="diagram-mini-log"></div>') });
 
 let failed = 0;
 for (const c of cases) {

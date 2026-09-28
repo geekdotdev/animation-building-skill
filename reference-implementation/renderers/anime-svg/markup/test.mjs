@@ -112,7 +112,7 @@ t("an unclosed tag in the diagram is reported as a parse error", () => {
 });
 
 // ---- stylesheet and helpers ----
-const cssAll = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }';
+const cssAll = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }\n@media (max-width: 600px) { .diagram-log { x: 1; } }';
 t("checkStylesheet: a complete stylesheet is clean; a missing class or volume rule is a warning; comments don't count", () => {
   assert.deepEqual(checkStylesheet(cssAll, baseDescriptor), []);
   assert.deepEqual(codes(checkStylesheet(cssAll.replace(".diagram-glow", ".diagram-blaze"), baseDescriptor)), ["warning:stylesheet"]);

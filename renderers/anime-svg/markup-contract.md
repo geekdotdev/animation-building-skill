@@ -27,7 +27,7 @@ The tools take one block from the file, the `<div class="diagram">` and everythi
 | `[root]` The block is one `div.diagram` with `id="diagram-<label>"`. | It is the root every other id hangs off, and the exporter scopes its styles to it. |
 | `[svg]` Exactly one `<svg>`, a **direct child** of the root. | Crawlers are appended to it, and it scales with the container. |
 | `[viewbox]` A `viewBox` of four numbers that **starts at `0 0`**. Never a negative origin. | anime.js's `path()` helper offsets every crawler by the origin's negative part. Shift the coordinates instead. |
-| `[log]` A `div.diagram-log` with id `diagram-<label>-log`, a direct child. | The interpreter writes each narration line into it. |
+| `[log]` A `div.diagram-log` with id `diagram-<label>-log`, a direct child. Named by the descriptor's `eventLog.element` (core/descriptor.md §2), but this id/class convention is fixed and doesn't vary with it. | The interpreter writes each narration line into it. |
 | `[footer]` `[replay]` A direct-child `div.diagram-footer` holding `button.diagram-replay` with id `diagram-<label>-replay`. | Replay is the Reset control. The mode switch is added to the footer when the descriptor allows it. |
 | `[duplicate-id]` `[parse]` Every id is used once, and every tag is closed. | Elements are found by id. |
 
@@ -75,6 +75,7 @@ So the file needn't and mustn't set these itself:
 | `.diagram-glow` | The acknowledge glow (a drop shadow). |
 | `.diagram-clickable` | Show a pressable node (a pointer cursor). |
 | `.diagram-hint` | Small italic text that ignores the pointer. |
+| `.diagram-log` | At a viewport of 600px or less, sit in normal document flow **below** the diagram — not overlaid on the canvas. Hard rule (core/ontology.md rule 27): no descriptor field changes it. |
 
 **Helpers the interpreter is given** (`checkHelpers`, errors if not exported by the helpers file):
 - `createCrawlerElement(type)` returns the SVG element for the asset named `type` (a key of the application's iconography), ready to append, with class `diagram-crawler`.

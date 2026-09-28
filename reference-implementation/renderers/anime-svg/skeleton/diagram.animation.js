@@ -31,6 +31,11 @@ export default {
   volumes: [
     { name: 'config', element: 'dg-vol-config', label: 'server config', consumer: 'server', offset: { x: 350, y: 30 } },
   ],
+  // The narration log, declared explicitly (core/descriptor.md §2). Its id/class convention is
+  // fixed by the markup contract, not composed from `element` — see diagram.html. On a narrow
+  // viewport it moves below the diagram; that's a hard rule (core/ontology.md rule 27), not
+  // something this descriptor can change.
+  eventLog: { element: 'log' },
   durations: { reveal: 700, acknowledge: 700, dock: 900 },
 
   // Pace: one factor on every duration and delay above and on every channel's `duration`. 1 is as authored, 2 is

@@ -16,6 +16,7 @@ export default {
     { name: 'server-other', element: 'dg-line-other', a: 'server', b: 'other', duration: 1500, visibility: 'hidden' },
   ],
   zones: [], volumes: [],
+  eventLog: { element: 'log' },
   durations: { leg: 800 },
   datums: [
     { name: 'started', label: 'Started', when: { start: true } },

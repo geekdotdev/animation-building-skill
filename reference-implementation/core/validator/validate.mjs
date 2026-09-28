@@ -34,7 +34,7 @@ import { pathToFileURL } from "node:url";
 const FIDELITY = ["faithful", "adapted", "metaphor"];
 const TIMEBOX = ["timed", "event-bounded", "user-paced", "open-ended"];
 const DIRECTIONS = ["forward", "return"];
-const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark"];
+const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "eventLog", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark"];
 const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */, "store" /* strict mode: core/descriptor.md section 3.2 */];
 const ACTION_MODIFIERS = ["after", "duration", "name"]; // `duration` and `name` are used by `dock` and `hide` (proposed)
 
@@ -62,6 +62,11 @@ export function validate(d, opts = {}) {
   if (typeof d.diagramLabel !== "string" || !d.diagramLabel) err("shape", "diagramLabel", "diagramLabel (the diagram's id suffix, e.g. 'login-flow') is required");
   if (typeof d.diagramLabel === "string" && d.diagramLabel && !/^[a-z][a-z0-9-]*$/.test(d.diagramLabel))
     err("shape", "diagramLabel", `diagramLabel "${d.diagramLabel}" must be lowercase letters, digits and hyphens, starting with a letter: it is the suffix of every element id`);
+  // `eventLog` (core/descriptor.md §2): declares the narration log explicitly, instead of leaving it an
+  // assumed part of the markup contract. Its id/class convention is fixed and doesn't vary with `element`;
+  // this only lets the validator check the log actually resolves, same as every other named construct.
+  if (!isObj(d.eventLog)) err("shape", "eventLog", "eventLog is required: { element } (the narration log)");
+  else if (typeof d.eventLog.element !== "string" || !d.eventLog.element.trim()) err("shape", "eventLog", "eventLog.element must be a non-empty string");
   // `pace`: one factor on every duration and delay (2 is twice as slow, 0.5 twice as fast)
   if (d.pace !== undefined) {
     if (typeof d.pace !== "number" || !Number.isFinite(d.pace) || d.pace <= 0) err("pace", "pace", "pace must be a positive number: 1 is the authored speed, 2 is twice as slow, 0.5 twice as fast");
@@ -512,6 +517,12 @@ export function validate(d, opts = {}) {
       if (!opts.markup.includes(`id="${ids(e)}"`)) err("markup", `${kind} ${e.name}`, `no element id="${ids(e)}" in the markup`);
     }
     for (const c of d.channels) if (c.label?.element && !opts.markup.includes(`id="${c.label.element}-${d.diagramLabel}"`)) err("markup", `channel ${c.name}`, `no label element id="${c.label.element}-${d.diagramLabel}"`);
+    // The event log's id/class is a fixed convention (markup-contract.md), not `${element}-${diagramLabel}`
+    // like everything else here — `eventLog.element` names the construct, it doesn't compose its id.
+    if (isObj(d.eventLog) && d.eventLog.element) {
+      if (!opts.markup.includes(`id="diagram-${d.diagramLabel}-log"`)) err("markup", "eventLog", `no element id="diagram-${d.diagramLabel}-log" in the markup`);
+      if (!/class="[^"]*\bdiagram-log\b/.test(opts.markup)) err("markup", "eventLog", `no element with class "diagram-log" in the markup`);
+    }
   }
   return out;
 }

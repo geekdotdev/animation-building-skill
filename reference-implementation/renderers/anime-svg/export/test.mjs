@@ -227,7 +227,7 @@ t("buildExport: replay:false hides Replay, and a custom template is honored", ()
 import skeletonDescriptor from "../skeleton/diagram.animation.js";
 import { REQUIRED_CLASSES } from "../markup/check.mjs";
 const skeletonHtml = fs.readFileSync(path.join(HERE, "../skeleton/diagram.html"), "utf8");
-const contractCss = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }';
+const contractCss = REQUIRED_CLASSES.map((c) => `.${c} { x: 1; }`).join("\n") + '\n[id^="dg-vol-"] { transform-origin: center; }\n.diagram-crawler-box { x: 1; }\n.diagram-watermark-text { x: 1; }\n@media (max-width: 600px) { .diagram-log { x: 1; } }';
 const contractJs = "import anime from '/vendor/a.js';\nexport function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() { return anime; }\n";
 const full = (o = {}) => ({ markup: skeletonHtml, sharedCss: contractCss, sharedJs: contractJs, animeSrc: parts.animeSrc, animeVersion: "3.2.2", interpreterSrc, descriptor: skeletonDescriptor, templates, profile: good, ...o });
 t("buildExport with every check on: the skeleton exports, with only the placeholder warnings", () => {

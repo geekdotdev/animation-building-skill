@@ -140,6 +140,10 @@ export function checkStylesheet(css, descriptor = {}) {
   if ((descriptor.volumes ?? []).length && !/\[id\^=["']?dg-vol-/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: "volumes", message: 'no rule sets [id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }, so docked volumes scale from the wrong point' });
   if (usesCrawlerBox(descriptor) && !/\.diagram-crawler-box(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-crawler-box", message: "a composite crawler uses box: true, but no rule styles .diagram-crawler-box, so it will render unstyled (default black fill)" });
   if (descriptor.watermark && !/\.diagram-watermark-text(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-watermark-text", message: "the descriptor has a watermark, but no rule styles .diagram-watermark-text, so its credit lines will render in the SVG's default text style" });
+  // The event log's mobile hard rule (core/ontology.md rule 27): a 600px @media block moving it
+  // out of its overlaid position, below the diagram. A regex spot-check, like the others here —
+  // not full CSS parsing — so it assumes a single, simple media block, same as the reference one.
+  if (!/@media\s*\([^)]*max-width:\s*600px[^)]*\)\s*\{[^}]*\.diagram-log/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-log", message: "no @media (max-width: 600px) rule repositions .diagram-log below the diagram (core/ontology.md rule 27)" });
   return out;
 }
 
