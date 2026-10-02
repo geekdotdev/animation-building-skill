@@ -10,7 +10,10 @@
 
 /* The event log, over the diagram's lower-left corner. */
 .diagram-log { position: absolute; left: 1rem; bottom: 2.75rem; width: 500px; max-width: calc(100% - 2rem); max-height: 110px; overflow-y: auto; z-index: 2; padding: 0.4rem 0.55rem; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #444; }
-.diagram-log p { margin: 0 0 0.2rem; }
+/* Hanging indent: a long entry wraps onto several lines, and the indent on the wrapped lines is
+   what lets the eye find where each entry starts. The first line stays flush left (the negative
+   text-indent cancels the padding for it). */
+.diagram-log p { margin: 0 0 0.2rem; padding-left: 1.25em; text-indent: -1.25em; }
 .diagram-log p:last-child { margin-bottom: 0; }
 /* BEHAVIOR: on a narrow viewport the log moves out of its overlaid position to sit below the
    diagram instead — overlaid, it would cover most of a phone-width screen. A hard rule with no

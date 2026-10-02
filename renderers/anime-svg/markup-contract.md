@@ -77,6 +77,8 @@ So the file needn't and mustn't set these itself:
 | `.diagram-hint` | Small italic text that ignores the pointer. |
 | `.diagram-log` | At a viewport of 600px or less, sit in normal document flow **below** the diagram — not overlaid on the canvas. Hard rule (core/ontology.md rule 27): no descriptor field changes it. |
 
+**The log's entries should wrap with a hanging indent** (not checked: it is readability, not something the interpreter depends on). Each entry is a `<p>` that `logDiagramTransition` appends, and a narration line is often long enough to wrap onto several lines. Without an indent the wrapped lines are indistinguishable from the start of the next entry. So `.diagram-log p` takes `padding-left: 1.25em; text-indent: -1.25em;` (or equivalent): the first line stays flush left and every wrapped line is indented. The reference stylesheet does this. A delivery target that restyles the log's paragraphs (the exporter's `log-color` parameter, a host theme's `p` rules) must not undo it.
+
 **Helpers the interpreter is given** (`checkHelpers`, errors if not exported by the helpers file):
 - `createCrawlerElement(type)` returns the SVG element for the asset named `type` (a key of the application's iconography), ready to append, with class `diagram-crawler`.
 - `logDiagramTransition(logSelector, message)` appends a line to the log and scrolls it into view.
