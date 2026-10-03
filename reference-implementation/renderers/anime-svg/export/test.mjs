@@ -4,7 +4,9 @@
 // Run: node test.mjs
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   splitRules, diagramCss, presentationCss, stripModule, animeBody, jsonForScript, fillTemplate,
@@ -243,6 +245,20 @@ t("buildExport stops when the helpers lack a required export; a stylesheet gap i
   assert.throws(() => buildExport(full({ sharedJs: contractJs.replace("logDiagramTransition", "log") }), {}), (e) => e.errors.some((m) => /markup \[helpers\]/.test(m)));
   const r = buildExport(full({ sharedCss: contractCss.replace(".diagram-glow", ".diagram-blaze") }), {});
   assert.ok(r.findings.some((f) => f.code === "stylesheet"));
+});
+
+// The documented install is a link at ~/.claude/skills/diagram-animation. A main-guard comparing an unresolved
+// argv[1] with import.meta.url made the CLI exit 0 in silence when reached through one; with no arguments it
+// must print its usage and exit 64.
+t("the CLI runs when reached through a symlink", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "export-link-"));
+  try {
+    const root = path.join(dir, "linked"); // the anime-svg folder
+    fs.symlinkSync(path.join(HERE, ".."), root);
+    const r = spawnSync(process.execPath, [path.join(root, "export/export.mjs")], { encoding: "utf8" });
+    assert.equal(r.status, 64, r.stdout + r.stderr);
+    assert.match(r.stdout + r.stderr, /usage: export\.mjs/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 let failed = 0;

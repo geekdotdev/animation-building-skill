@@ -533,7 +533,9 @@ function readAssets(file) {
   if (file.endsWith(".json")) { const j = JSON.parse(t); return Array.isArray(j) ? j : Object.keys(j); }
   return [...t.matchAll(/^  (\w+): \{ shape:/gm)].map((m) => m[1]); // the ICONOGRAPHY object in diagram-shared.js
 }
-if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+// realpath: Node resolves symlinks in import.meta.url but not in argv[1], so without it this tool, reached
+// through a symlink (the documented install is a link), would never run and would exit 0 in silence.
+if (process.argv[1] && pathToFileURL(fs.realpathSync(process.argv[1])).href === import.meta.url) {
   const args = process.argv.slice(2);
   const flag = (n) => { const i = args.indexOf(n); return i < 0 ? undefined : args.splice(i, 2)[1]; };
   const json = args.includes("--json"); if (json) args.splice(args.indexOf("--json"), 1);

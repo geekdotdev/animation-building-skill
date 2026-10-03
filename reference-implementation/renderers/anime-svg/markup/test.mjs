@@ -4,7 +4,9 @@
 // each test breaks it one way and expects the check for that to fire. Run: node test.mjs
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parseMarkup } from "./parse.mjs";
 import { checkMarkup, checkStylesheet, checkHelpers, REQUIRED_CLASSES } from "./check.mjs";
@@ -133,6 +135,22 @@ t("checkHelpers: each required export must be present", () => {
   const ok = "export function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() {}\n";
   assert.deepEqual(checkHelpers(ok), []);
   assert.deepEqual(codes(checkHelpers(ok.replace("logDiagramTransition", "log"))), ["error:helpers"]);
+});
+
+// The documented install is a link at ~/.claude/skills/diagram-animation. A main-guard comparing an unresolved
+// argv[1] with import.meta.url made the CLI exit 0 in silence when reached through one.
+t("the CLI runs when reached through a symlink", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "markup-link-"));
+  try {
+    const root = path.join(dir, "linked"); // the anime-svg folder, so ../skeleton and ../reference sit beside it
+    fs.symlinkSync(path.join(HERE, ".."), root);
+    const r = spawnSync(process.execPath, [
+      path.join(root, "markup/check.mjs"), path.join(root, "skeleton/diagram.animation.js"),
+      "--css", path.join(root, "reference/diagram.css"), "--helpers", path.join(root, "reference/helpers.js"),
+    ], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /\d+ errors/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 let failed = 0;

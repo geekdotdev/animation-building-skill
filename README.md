@@ -2,7 +2,25 @@
 
 An agent skill for building animated diagrams that visualize an application's behavior. `SKILL.md` is the entry point. The rest is layered: `core/` (any application), `renderers/`, `domains/`, `examples/`, and `reference-implementation/` (runnable code: a descriptor validator and an anime.js interpreter).
 
-**Install** by copying this folder to `<your project>/.claude/skills/diagram-animation`.
+## Getting started
+
+The whole path, in order. [`AUTHORING-WORKFLOW.md`](AUTHORING-WORKFLOW.md) has the commands for each step.
+
+1. **Install the skill once, as a link.** Link this folder into your personal skills as `diagram-animation`, the skill's `name`:
+
+   ```bash
+   mkdir -p ~/.claude/skills
+   ln -s /path/to/animation-building-skill ~/.claude/skills/diagram-animation
+   ```
+
+   Every project then sees the same copy, so there is nothing to keep in step. (Copying the folder to `<project>/.claude/skills/diagram-animation` also works, but the copy goes stale.) The tools need Node 18 or later. If the skill isn't listed, start a new Claude Code session.
+2. **Make a project for your animations, in its own git repo.** One command: `reference-implementation/renderers/anime-svg/init/init-project.sh <folder> [--diagram <label>] [--css <file> --helpers <file>]`. It creates the repo, installs anime.js (it isn't included), copies the skeleton in renamed for your diagram, and writes an `export.sh` with the paths filled in. If your application has its own stylesheet and helpers file, pass both: the checks, the test site and the exports use them in place of the reference ones, and the helpers hold the iconography that the descriptor's assets are checked against.
+3. **Describe the animation in plain language.** Say which flow to show and where its code is. The agent maps your words to the ontology's terms, drafts the descriptor, cites the code for each step, tags it faithful, adapted or metaphor, and stops to ask you when something is a judgment call. You review it.
+4. **Check it and try it.** The validator checks the descriptor, the markup check checks the drawing, and the test site runs it in a browser, user-driven or automated. Geometry is checked by eye.
+5. **Change it by asking,** in your own words ("move the client left"). The agent works out what moves with it and re-runs the checks.
+6. **Put it in your application.** Copy the descriptor, the diagram block and the interpreter into the application and start it with a few lines. The application's stylesheet and helpers supply the look and the assets.
+7. **Or export it** as one self-contained file for somewhere that isn't your application (a blog card, a standalone page).
+8. **Keep the copies in step.** The animation project is the source. Change it there, re-run the checks, copy it again, and regenerate any export. Never edit a copy.
 
 ## Capabilities
 

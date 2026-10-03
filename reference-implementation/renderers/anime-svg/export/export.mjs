@@ -327,6 +327,7 @@ async function main() {
   console.log(`presentation parameters set: ${notes.params.join(", ") || "none"}`);
   if (notes.unverified.length) console.log("not verified (from the profile):\n" + notes.unverified.map((u) => "  - " + u).join("\n"));
 }
-if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+// realpath: see validate.mjs: a tool reached through a symlink must still run.
+if (process.argv[1] && pathToFileURL(fs.realpathSync(process.argv[1])).href === import.meta.url) {
   main().catch((e) => { console.error(e.message); process.exit(1); });
 }

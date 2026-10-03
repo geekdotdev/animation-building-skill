@@ -3,6 +3,11 @@
 // Tests for validate.mjs: the valid fixture is clean, and each mutation is caught with the
 // expected code. Run: node test.mjs
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { validate } from "./validate.mjs";
 import base from "./fixtures/minimal.animation.js";
 
@@ -292,5 +297,15 @@ for (const c of cases) {
   try { assert.deepEqual(got, want); console.log("ok   " + c.name); }
   catch { failed++; console.log(`FAIL ${c.name}\n     expected ${JSON.stringify(want)}\n     got      ${JSON.stringify(got)}`); }
 }
-console.log(`\n${cases.length - failed}/${cases.length} passed`);
+// The CLI has to run when reached through a symlink: the documented install is a link at
+// ~/.claude/skills/diagram-animation. A main-guard comparing an unresolved argv[1] with
+// import.meta.url made it exit 0 in silence there, so a broken descriptor looked clean.
+const linkDir = fs.mkdtempSync(path.join(os.tmpdir(), "validator-link-"));
+fs.symlinkSync(path.dirname(fileURLToPath(import.meta.url)), path.join(linkDir, "linked"));
+const viaLink = spawnSync(process.execPath, [path.join(linkDir, "linked/validate.mjs"), path.join(linkDir, "linked/fixtures/minimal.animation.js")], { encoding: "utf8" });
+fs.rmSync(linkDir, { recursive: true, force: true });
+const linkName = "the CLI runs when reached through a symlink";
+if (viaLink.status === 0 && /\d+ errors/.test(viaLink.stdout + viaLink.stderr)) console.log("ok   " + linkName);
+else { failed++; console.log(`FAIL ${linkName}\n     exit ${viaLink.status}, output ${JSON.stringify(viaLink.stdout + viaLink.stderr)}`); }
+console.log(`\n${cases.length + 1 - failed}/${cases.length + 1} passed`);
 process.exit(failed ? 1 : 0);

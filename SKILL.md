@@ -5,7 +5,7 @@ description: Use when creating, changing, reviewing or exporting an animated dia
 
 # Diagram animation
 
-**Status: draft.** The guidance layers, the descriptor format, a validator and an interpreter are written. No diagram has been switched over to the interpreter, and the unwritten parts are listed under "Not yet written" so the gaps are visible instead of assumed.
+**Status: draft.** The guidance layers, the descriptor format, a validator and an interpreter are written. One diagram, lab 5 of the example project, runs on the interpreter (the other example diagrams still use their own scripts), and the unwritten parts are listed under "Not yet written" so the gaps are visible instead of assumed.
 
 ## Purpose
 
@@ -44,6 +44,7 @@ For a **new project**, read `core/`, pick or write a renderer adapter and a doma
 13. **When something doesn't work or doesn't show up:** check the renderer's `pitfalls.md`, then the example's `environment.md`. Most problems so far were already hit once.
 14. **Choosing or adding an asset:** see the domain pack's `iconography.md`. It is an example seed of the visual vocabulary and how meaning is attached to it, not a specification. Reuse an existing asset before adding one, and prefer what the user wants over what the seed happens to do.
 15. **Exports change presentation only.** When exporting an animation for a delivery target (a blog post, a slide), follow `core/delivery-targets.md`: record every difference in a target profile that sets only parameters on the parameter surface, regenerate from source, never hand-edit the output, and never change the sequences. How to run the exporter is in "Exporting an animation", below.
+16. **When the user asks how to set up or use the skill,** point them to `README.md` ("Getting started") and `AUTHORING-WORKFLOW.md`. The whole path, in order: install the skill as a link at `~/.claude/skills/diagram-animation`; make a git repo for the animations with `reference-implementation/renderers/anime-svg/init/init-project.sh <folder> [--diagram label] [--css f --helpers f]` (it installs anime.js, copies in the renamed skeleton, and writes an `export.sh`, which, like `export/`, is committed rather than ignored); describe the animation in plain language and build it with the ontology; check it and try it; change it by asking; put it in the application (copy the descriptor, the diagram block and the interpreter, and start it with a few lines) or export it; keep the copies in step with the source, which is the animation project.
 
 ## Exporting an animation
 
@@ -57,7 +58,13 @@ Use this when the user wants the diagram somewhere other than the application: a
    - `unverified`: what you couldn't test, honestly.
 
    If the look you need isn't on the surface, don't patch the output or the CSS: ask the user before adding a parameter to `surface.mjs`, since it extends the contract.
-3. **Export**, from this folder. Example diagram 5's descriptor is still a draft, so this example needs `--allow-open`:
+3. **Export.** In a project made by `init-project.sh` (it's in the project's root as `export.sh`), run that: it has the skill, stylesheet, helpers and anime.js paths filled in, creates `export/` if it's missing, and passes any other argument to the exporter.
+
+   ```bash
+   ./export.sh [--diagram <label>] [--profile ghost-html-card|standalone-page|<profile.js>] [--allow-open] [--check]
+   ```
+
+   The output is `export/<label>-<profile>.html`. Both the script and `export/` are committed, not git-ignored. Without that script, call the exporter directly:
 
    ```bash
    node reference-implementation/renderers/anime-svg/export/export.mjs \
@@ -77,7 +84,7 @@ Use this when the user wants the diagram somewhere other than the application: a
 
 Nothing is planned. Until the user names something, don't invent contents: ask, or read the current scripts. Known gaps:
 
-1. **No diagram uses the interpreter.** It was validated once against example diagram 5's script (`reference-implementation/renderers/anime-svg/test/README.md`), and switching a diagram over needs the user's request.
+1. **Only one example diagram uses the interpreter.** Lab 5 of the example project runs on it (its `callout-pop-zero-permission` descriptor, with a vendored copy of `interpreter.js`); the interpreter was first validated against that diagram's original script (`reference-implementation/renderers/anime-svg/test/README.md`). The other example diagrams keep their own scripts, and switching one over needs the user's request.
 2. **Not implemented in the interpreter:** overlay precedence (the newest asset is on top), lane reset triggers, and `sharedPrefix` divergences.
 3. **The exporter** has no `armedGestures` parameter, and no still-frame or drop-the-phase rendering for a target that can't take clicks. It takes the application's stylesheet, helpers and anime.js as options (`--app` supplies the example project's layout).
 4. **The descriptor format still lists seven additions as *proposed*** (`examples/nats-nkey-demo/README.md`, its `FINDINGS.md`). The validator and interpreter accept them.
