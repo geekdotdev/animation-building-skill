@@ -127,7 +127,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 EOF
   printf 'SKILL_REPO="${SKILL_REPO:-%s}"\n' "$(dq "$SKILL_REPO")"
-  printf 'APP="${APP:-%s}"\n' "$(dq "$APP")"
+  printf 'APP_REPO="${APP_REPO:-%s}"\n' "$(dq "$APP")"
   printf 'CSS="${CSS:-%s}"\n' "$(dq "$CSS")"
   printf 'HELPERS="${HELPERS:-%s}"\n' "$(dq "$HELPERS")"
   printf 'ANIME="${ANIME:-%s}"\n' "$(dq "$ANIME")"
@@ -146,13 +146,13 @@ while [ $# -gt 0 ]; do
 done
 
 # The reference stylesheet and helpers unless this project uses an application's; anime.js from this project.
-if [ -z "$APP" ]; then
+if [ -z "$APP_REPO" ]; then
   : "${CSS:=$R/renderers/anime-svg/reference/diagram.css}"
   : "${HELPERS:=$R/renderers/anime-svg/reference/helpers.js}"
   : "${ANIME:=$HERE/node_modules/animejs/lib/anime.es.js}"
 fi
 INPUTS=()
-[ -z "$APP" ] || INPUTS+=(--app "$APP")
+[ -z "$APP_REPO" ] || INPUTS+=(--app "$APP_REPO")
 [ -z "$CSS" ] || INPUTS+=(--css "$CSS")
 [ -z "$HELPERS" ] || INPUTS+=(--helpers "$HELPERS")
 [ -z "$ANIME" ] || INPUTS+=(--anime "$ANIME")

@@ -29,23 +29,25 @@ mkdir -p ~/.claude/skills
 ln -s /path/to/animation-building-skill ~/.claude/skills/diagram-animation
 ```
 
-Claude Code finds personal skills at `~/.claude/skills/<name>/SKILL.md` and follows the link, so every project sees this one copy and there is nothing to keep in step. Check with `ls -l ~/.claude/skills`, and start a new session if the skill isn't listed. The tools in `reference-implementation/` need Node 18 or later. To make it available to one project only, link or copy it to `<project>/.claude/skills/diagram-animation` instead (a copy goes stale; a link doesn't).
+Claude Code finds personal skills at `~/.claude/skills/<name>/SKILL.md` and follows the link, so every project sees this one copy and there is nothing to keep in step. Check with `ls -l ~/.claude/skills`, and start a new session if the skill isn't listed. The tools in `reference-implementation/` need Node 18 or later.
 
 ## Set up per project: a repo for the animations
 
 Each application gets its own folder for animation files, in its own git repo, so the descriptors and drawings have a history and one source of truth. The init script makes it:
 
 ```bash
-$R/renderers/anime-svg/init/init-project.sh ~/projects/my-animations
+~/.claude/skills/diagram-animation/init-project.sh ~/projects/my-animations
 cd ~/projects/my-animations
 ```
 
 Optionally, name the first diagram (the default is the folder's name) and point at your application's stylesheet and helpers:
 
 ```bash
-$R/renderers/anime-svg/init/init-project.sh ~/projects/my-animations --diagram login-flow \
+~/.claude/skills/diagram-animation/init-project.sh ~/projects/my-animations --diagram login-flow \
   --css /path/to/your-app/shared.css --helpers /path/to/your-app/diagram-shared.js
 ```
+
+`init-project.sh` at the top of the skill is only an entry point, so the command you run first has a short path. It forwards to `reference-implementation/renderers/anime-svg/init/init-project.sh`, which holds the logic and the tests. That one lives under the renderer because it is specific to it: it copies the renderer's skeleton, installs anime.js, and writes an `export.sh` for the renderer's exporter. A second renderer would get its own init script, and the entry point is where a choice between them would go.
 
 It refuses a folder that already has files in it. What it creates:
 
@@ -153,7 +155,7 @@ In a project made by `init-project.sh`, run the script it generated:
 ./export.sh --check                  # is the export up to date?
 ```
 
-It creates `export/` if it isn't there. Extra arguments such as `--check` and `--allow-open` go to the exporter. The script and `export/` are committed, not ignored: the exports are derived files, but they are what you publish, so the repo keeps them in step with the diagram. The script is plain bash with its paths at the top, so change them there if the skill or the application moves (or set `SKILL_REPO=…` for one run).
+It creates `export/` if it isn't there. Extra arguments such as `--check` and `--allow-open` go to the exporter. The script and `export/` are committed, not ignored: the exports are derived files, but they are what you publish, so the repo keeps them in step with the diagram. The script is plain bash with its paths at the top, so change them there if the skill or the application moves (or set `SKILL_REPO=…` or `APP_REPO=…` for one run).
 
 Without it, the same thing by hand:
 
@@ -213,7 +215,7 @@ The animation project is the source of truth. Everything in the application, and
 
 | For | See |
 |---|---|
-| What `init-project.sh` makes and its options | `reference-implementation/renderers/anime-svg/init/init-project.sh -h` |
+| What `init-project.sh` makes and its options | `init-project.sh -h` (the entry point at the top of the skill; the logic is in `reference-implementation/renderers/anime-svg/init/`) |
 | The agent's version of this path, with the decision points | `core/workflow.md` |
 | What a diagram file, stylesheet and helpers must provide | `renderers/anime-svg/markup-contract.md` |
 | The descriptor format | `core/descriptor.md` |

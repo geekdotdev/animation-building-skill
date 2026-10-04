@@ -123,6 +123,18 @@ t("reached through a symlink, it records the skill's real folder", () => {
   assert.ok(read(tmp, "via-link/export.sh").includes(`SKILL_REPO="\${SKILL_REPO:-${REAL_SKILL}}"`));
 });
 
+t("the skill's top-level init-project.sh forwards here, also through a symlinked skill folder", () => {
+  const link = path.join(tmp, "linked-skill");
+  fs.symlinkSync(REAL_SKILL, link);
+  const r = init([path.join(tmp, "via-entry"), "--diagram", "entry", "--no-install", "--anime", ANIME], path.join(link, "init-project.sh"));
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.ok(fs.existsSync(path.join(tmp, "via-entry/entry/diagram.html")));
+  assert.ok(read(tmp, "via-entry/export.sh").includes(`SKILL_REPO="\${SKILL_REPO:-${REAL_SKILL}}"`));
+  const help = init(["-h"], path.join(REAL_SKILL, "init-project.sh"));
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /Usage: init-project.sh <project-dir>/);
+});
+
 let failed = 0;
 for (const c of cases) {
   try { c.fn(); console.log("ok   " + c.name); }
