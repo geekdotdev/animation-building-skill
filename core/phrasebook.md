@@ -24,10 +24,10 @@ Users often use the vocabulary of the picture. Keep their word when you talk to 
 | box, service, component | node | |
 | glow, pulse, lights up | acknowledge effect | Usually a datum's closing acknowledgement. A **blue** glow on a pressed feature is the simulated-gesture acknowledgement. |
 | the switch, the toggle, "mode switch" | mode toggle (a lifecycle control, like Replay) | Not a gesture. Usable at any moment. It never disturbs the run, and Reset keeps its setting (ontology rules 20 and 21). |
-| automated, autoplay, plays by itself, "user-driven", "manual" | interaction mode | Declared in the descriptor's `modes`. Automated still runs the gesture lifecycle (ontology rules 17 to 19). |
+| automated, autoplay, plays by itself, "user-driven", "manual" | interaction mode | Declared in the descriptor's `settings.interactionModes`. Automated still runs the gesture lifecycle (ontology rules 17 to 19). |
 | appears, fades in, shows up | reveal effect | |
 | "the same time", "together", "in sync" | convergence | Equal leg durations, never a wait (`core/timing.md`). |
-| faster, slower, too quick | a channel's or leg's duration, or the **pace** | If they mean the whole diagram ("slow it all down"), set `pace`. If one line or step, change that duration, and ask which legs. |
+| faster, slower, too quick | a channel's or leg's duration, or the **pace** | If they mean the whole diagram ("slow it all down"), set `settings.paceMultiplier`. If one line or step, change that duration, and ask which legs. |
 | bounding box, boundary box, grouped in a box | zone | A spatial trust boundary. |
 | volume, shared volume, docks | docked asset (a metaphor) | |
 | log, event log, narration | narrate effect | |
@@ -54,7 +54,7 @@ Users often use the vocabulary of the picture. Keep their word when you talk to 
 **"Draw a box around A and B"**: a zone with those members, plus any asset docked at them, with padding and the intersection rules. Check that no line between non-members crosses it.
 
 ### D. Timing
-- **"Too fast / slow"**: the whole diagram, or one channel or leg? For the whole diagram, set the descriptor's `pace` (2 is twice as slow), which keeps everything in step. For one, which channel or leg, and by how much? Propose a value.
+- **"Too fast / slow"**: the whole diagram, or one channel or leg? For the whole diagram, set the descriptor's `settings.paceMultiplier` (2 is twice as slow), which keeps everything in step. For one, which channel or leg, and by how much? Propose a value.
 - **"Finish at the same time"**: convergence. Equal leg durations, so crawler speeds differ with line length. Don't add waits.
 - **"Wait N seconds"**: a delay trigger, or a longer narration spacing. Ask which.
 

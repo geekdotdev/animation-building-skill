@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Observes a diagram's page and records what it does, in window.__run:
 //   { log: [{t, text}], events: [...], clicks: [{t, node, phase, by}], done }
-// It never acts: the interaction mode belongs to the descriptor and the interpreter (`modes`, ontology
+// It never acts: the interaction mode belongs to the descriptor and the interpreter (`settings.interactionModes`, ontology
 // rules 17 to 19). `clicks` lists each gesture with who performed it (by: 'user' or 'simulated').
 // `done` is set 8 s after the interactive phase's gesture, so a payload has crossed.
 export async function startDriver(label, boot) {

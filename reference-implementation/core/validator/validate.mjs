@@ -34,7 +34,11 @@ import { pathToFileURL } from "node:url";
 const FIDELITY = ["faithful", "adapted", "metaphor"];
 const TIMEBOX = ["timed", "event-bounded", "user-paced", "open-ended"];
 const DIRECTIONS = ["forward", "return"];
-const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "eventLog", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark", "grid"];
+const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "eventLog", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "markup", "strict", "settings"];
+// The four run-time switches live in one `settings` block (core/descriptor.md section 2.1). Before that they were top-level keys
+// with shorter names; a descriptor still using one gets an error naming where it went, not a vague "unknown key".
+const SETTINGS_KEYS = ["paceMultiplier", "interactionModes", "attributionMetadata", "gridLayer"];
+const MOVED_KEYS = { pace: "settings.paceMultiplier", modes: "settings.interactionModes", watermark: "settings.attributionMetadata", grid: "settings.gridLayer" };
 const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */, "store" /* strict mode: core/descriptor.md section 3.2 */];
 const ACTION_MODIFIERS = ["after", "duration", "name"]; // `duration` and `name` are used by `dock` and `hide` (proposed)
 
@@ -57,7 +61,14 @@ export function validate(d, opts = {}) {
   };
   const bad = impure(d, "descriptor");
   if (bad) { err("data-only", bad, "not data-only: functions, undefined, symbols, bigint and non-finite numbers are not allowed"); return out; }
-  for (const k of Object.keys(d)) if (!TOP_KEYS.includes(k)) warn("unknown-key", k, `unknown top-level key "${k}"`);
+  for (const k of Object.keys(d)) {
+    if (k in MOVED_KEYS) err("moved", k, `"${k}" is now ${MOVED_KEYS[k]}: move it into the settings block`);
+    else if (!TOP_KEYS.includes(k)) warn("unknown-key", k, `unknown top-level key "${k}"`);
+  }
+  // `settings` (core/descriptor.md section 2.1): paceMultiplier, interactionModes, attributionMetadata, gridLayer. Each is checked below.
+  if (d.settings !== undefined && !isObj(d.settings)) err("shape", "settings", "settings must be an object");
+  const S = isObj(d.settings) ? d.settings : {};
+  for (const k of Object.keys(S)) if (!SETTINGS_KEYS.includes(k)) warn("unknown-key", `settings.${k}`, `unknown key settings.${k}`);
   if (d.version !== 1) err("version", "version", `unsupported version ${JSON.stringify(d.version)}`);
   if (typeof d.diagramLabel !== "string" || !d.diagramLabel) err("shape", "diagramLabel", "diagramLabel (the diagram's id suffix, e.g. 'login-flow') is required");
   if (typeof d.diagramLabel === "string" && d.diagramLabel && !/^[a-z][a-z0-9-]*$/.test(d.diagramLabel))
@@ -67,10 +78,10 @@ export function validate(d, opts = {}) {
   // this only lets the validator check the log actually resolves, same as every other named construct.
   if (!isObj(d.eventLog)) err("shape", "eventLog", "eventLog is required: { element } (the narration log)");
   else if (typeof d.eventLog.element !== "string" || !d.eventLog.element.trim()) err("shape", "eventLog", "eventLog.element must be a non-empty string");
-  // `pace`: one factor on every duration and delay (2 is twice as slow, 0.5 twice as fast)
-  if (d.pace !== undefined) {
-    if (typeof d.pace !== "number" || !Number.isFinite(d.pace) || d.pace <= 0) err("pace", "pace", "pace must be a positive number: 1 is the authored speed, 2 is twice as slow, 0.5 twice as fast");
-    else if (d.pace < 0.1 || d.pace > 10) warn("pace", "pace", `pace ${d.pace} is more than ten times faster or slower than authored: is that intended?`);
+  // `settings.paceMultiplier`: one factor on every duration and delay (2 is twice as slow, 0.5 twice as fast)
+  if (S.paceMultiplier !== undefined) {
+    if (typeof S.paceMultiplier !== "number" || !Number.isFinite(S.paceMultiplier) || S.paceMultiplier <= 0) err("pace", "settings.paceMultiplier", "settings.paceMultiplier must be a positive number: 1 is the authored speed, 2 is twice as slow, 0.5 twice as fast");
+    else if (S.paceMultiplier < 0.1 || S.paceMultiplier > 10) warn("pace", "settings.paceMultiplier", `settings.paceMultiplier ${S.paceMultiplier} is more than ten times faster or slower than authored: is that intended?`);
   }
   // `markup`: where the diagram's SVG lives (the descriptor holds no geometry). A path relative to the descriptor.
   if (d.markup !== undefined) {
@@ -139,8 +150,8 @@ export function validate(d, opts = {}) {
     const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] };
     arr(m.nodes).forEach((n) => nodes.has(n) || err("unresolved", `zone ${z.name}`, `member ${n} is not a node`));
     arr(m.volumes).forEach((v) => vols.has(v) || err("unresolved", `zone ${z.name}`, `member ${v} is not a volume`));
-    // a watermark's zone is expected to have no members (it's an attribution box, not a trust boundary)
-    if (arr(m.nodes).length < 1 && d.watermark?.zone !== z.name) warn("zone", `zone ${z.name}`, "a zone with no member nodes");
+    // an attribution box's zone is expected to have no members (it's not a trust boundary)
+    if (arr(m.nodes).length < 1 && S.attributionMetadata?.zone !== z.name) warn("zone", `zone ${z.name}`, "a zone with no member nodes");
     // a volume docked at a member node belongs in the zone (core/ontology.md), so check it is listed
     for (const v of d.volumes) if (arr(m.nodes).includes(v.consumer) && !arr(m.volumes).includes(v.name)) warn("zone", `zone ${z.name}`, `volume ${v.name} docks at member ${v.consumer} but is not a member of the zone`);
   }
@@ -432,24 +443,26 @@ export function validate(d, opts = {}) {
   }
 
   // ---- 9b. interaction mode (ontology rules 17 to 19) ---------------------------
-  if (d.modes !== undefined) {
-    const m = d.modes, w = "modes";
-    if (!isObj(m)) err("modes", w, "modes must be an object");
+  if (S.interactionModes !== undefined) {
+    const m = S.interactionModes, w = "settings.interactionModes";
+    if (!isObj(m)) err("modes", w, "settings.interactionModes must be an object");
     else {
-      for (const k of Object.keys(m)) if (!["default", "toggle", "simulated"].includes(k)) warn("unknown-key", w, `unknown key modes.${k}`);
+      for (const k of Object.keys(m)) if (!["default", "toggle", "simulated"].includes(k)) warn("unknown-key", w, `unknown key settings.interactionModes.${k}`);
       if (!["user-driven", "automated"].includes(m.default)) err("modes", w, "default must be 'user-driven' or 'automated'");
       if (m.toggle !== undefined && typeof m.toggle !== "boolean") err("modes", w, "toggle must be true or false");
       const s2 = m.simulated;
       if (s2 !== undefined) {
         if (!isObj(s2)) err("modes", w, "simulated must be an object");
         else {
-          if (!(s2.delay >= 0)) err("modes", w, "simulated.delay must be a non-negative number of milliseconds");
+          if ("delay" in s2) err("moved", w, '"simulated.delay" is now simulated.delayMs');
+          else if (!(s2.delayMs >= 0)) err("modes", w, "simulated.delayMs must be a non-negative number of milliseconds");
           const a = s2.acknowledge;
-          if (!isObj(a) || typeof a.color !== "string" || !a.color || !(a.duration > 0)) err("modes", w, "simulated.acknowledge needs a color (a string) and a positive duration");
+          if (isObj(a) && "duration" in a) err("moved", w, '"simulated.acknowledge.duration" is now simulated.acknowledge.durationMs');
+          else if (!isObj(a) || typeof a.color !== "string" || !a.color || !(a.durationMs > 0)) err("modes", w, "simulated.acknowledge needs a color (a string) and a positive durationMs (milliseconds)");
         }
       }
       // the mode can be automated when it is the default or the viewer can switch to it
-      if ((m.default === "automated" || m.toggle === true) && gestureNodes.size && s2 === undefined) err("modes", w, "the mode can be automated but the simulated-gesture acknowledgement (modes.simulated) is not declared: rule 18 requires a visible press");
+      if ((m.default === "automated" || m.toggle === true) && gestureNodes.size && s2 === undefined) err("modes", w, "the mode can be automated but the simulated-gesture acknowledgement (settings.interactionModes.simulated) is not declared: rule 18 requires a visible press");
       if (m.toggle === true && !gestureNodes.size) warn("modes", w, "a mode toggle with no gesture node has nothing to switch");
     }
   }
@@ -487,38 +500,40 @@ export function validate(d, opts = {}) {
     if (s.position === "adjacent" && (!isObj(s.offset) || typeof s.offset.x !== "number" || typeof s.offset.y !== "number")) err("shape", w, "adjacent needs an offset: { x, y }");
   }
 
-  // ---- 9e. watermark (optional): attribution to the skill and the developer ---------------------
+  // ---- 9e. settings.attributionMetadata (optional): attribution to the skill and the developer ---------------------
   // Its position and size are a zone (with no members), reused rather than a new geometry-holding field —
-  // geometry stays in the SVG either way. Content and timing are the watermark's own.
-  if (d.watermark !== undefined) {
-    const w = d.watermark, ww = "watermark";
-    if (!isObj(w)) err("shape", ww, "watermark must be an object");
+  // geometry stays in the SVG either way. Content and timing are the attribution's own.
+  if (S.attributionMetadata !== undefined) {
+    const w = S.attributionMetadata, ww = "settings.attributionMetadata";
+    if (!isObj(w)) err("shape", ww, "settings.attributionMetadata must be an object");
     else {
-      for (const k of Object.keys(w)) if (!["zone", "repo", "author", "website", "fade"].includes(k)) warn("unknown-key", ww, `unknown key watermark.${k}`);
+      for (const k of Object.keys(w)) if (!["zone", "repo", "author", "website", "fadeAfterSeconds"].includes(k) && k !== "fade") warn("unknown-key", ww, `unknown key settings.attributionMetadata.${k}`);
       const z = d.zones.find((x) => x.name === w.zone);
-      if (typeof w.zone !== "string" || !w.zone) err("shape", ww, "watermark.zone is required: the name of the zone to use as its box");
+      if (typeof w.zone !== "string" || !w.zone) err("shape", ww, "settings.attributionMetadata.zone is required: the name of the zone to use as its box");
       else if (!z) err("unresolved", ww, `zone ${w.zone} is not defined`);
-      else { const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] }; if (arr(m.nodes).length || arr(m.volumes).length) err("shape", ww, `zone ${w.zone} has members: a watermark's zone must have none (it's an attribution box, not a trust boundary)`); }
+      else { const m = isObj(z.members) ? z.members : { nodes: arr(z.members), volumes: [] }; if (arr(m.nodes).length || arr(m.volumes).length) err("shape", ww, `zone ${w.zone} has members: the attribution box's zone must have none (it's an attribution box, not a trust boundary)`); }
       if (w.repo !== undefined && typeof w.repo !== "boolean") err("shape", ww, "repo must be true or false");
       if (w.author !== undefined && (typeof w.author !== "string" || !w.author.trim())) err("shape", ww, "author must be a non-empty string");
       if (w.website !== undefined) {
         if (typeof w.website !== "string" || !w.website.trim()) err("shape", ww, "website must be a non-empty string");
         else if (!/^https?:\/\//.test(w.website)) warn("shape", ww, `website "${w.website}" doesn't start with http:// or https://: is that intended?`);
       }
-      if (w.fade !== undefined && w.fade !== false && !(typeof w.fade === "number" && w.fade > 0)) err("shape", ww, "fade must be false (permanent) or a positive number of seconds");
+      if ("fade" in w) err("moved", ww, '"fade" is now fadeAfterSeconds');
+      else if (w.fadeAfterSeconds !== undefined && w.fadeAfterSeconds !== false && !(typeof w.fadeAfterSeconds === "number" && w.fadeAfterSeconds > 0)) err("shape", ww, "fadeAfterSeconds must be false (permanent) or a positive number of seconds");
     }
   }
 
-  // ---- 9f. grid (optional): an authoring aid, a numbered coordinate grid over the canvas ---------
-  if (d.grid !== undefined) {
-    const g = d.grid, gw = "grid";
-    if (!isObj(g)) err("shape", gw, "grid must be an object: { enabled, step? }");
+  // ---- 9f. settings.gridLayer (optional): an authoring aid, a numbered coordinate grid over the canvas ---------
+  if (S.gridLayer !== undefined) {
+    const g = S.gridLayer, gw = "settings.gridLayer";
+    if (!isObj(g)) err("shape", gw, "settings.gridLayer must be an object: { enabled, stepUserUnits? }");
     else {
-      for (const k of Object.keys(g)) if (!["enabled", "step"].includes(k)) warn("unknown-key", gw, `unknown key grid.${k}`);
-      if (typeof g.enabled !== "boolean") err("shape", gw, "grid.enabled is required and must be true or false");
-      if (g.step !== undefined && !(typeof g.step === "number" && Number.isFinite(g.step) && g.step > 0)) err("shape", gw, "grid.step must be a positive number of user units");
-      else if (g.step !== undefined && g.step < 5) warn("shape", gw, `grid.step ${g.step} draws a very dense grid: is that intended?`);
-      if (g.enabled === true) warn("grid", gw, "the grid is enabled: it is an authoring aid, so set grid.enabled to false (or remove grid) before publishing or exporting");
+      for (const k of Object.keys(g)) if (!["enabled", "stepUserUnits"].includes(k) && k !== "step") warn("unknown-key", gw, `unknown key settings.gridLayer.${k}`);
+      if (typeof g.enabled !== "boolean") err("shape", gw, "settings.gridLayer.enabled is required and must be true or false");
+      if ("step" in g) err("moved", gw, '"step" is now stepUserUnits');
+      else if (g.stepUserUnits !== undefined && !(typeof g.stepUserUnits === "number" && Number.isFinite(g.stepUserUnits) && g.stepUserUnits > 0)) err("shape", gw, "settings.gridLayer.stepUserUnits must be a positive number of user units");
+      else if (g.stepUserUnits !== undefined && g.stepUserUnits < 5) warn("shape", gw, `settings.gridLayer.stepUserUnits ${g.stepUserUnits} draws a very dense grid: is that intended?`);
+      if (g.enabled === true) warn("grid", gw, "the grid layer is enabled: it is an authoring aid, so set settings.gridLayer.enabled to false (or remove gridLayer) before publishing or exporting");
     }
   }
 

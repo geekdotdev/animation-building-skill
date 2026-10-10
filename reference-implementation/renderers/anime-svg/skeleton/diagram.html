@@ -1,3 +1,5 @@
+<!-- Copyright (c) 2026 Charlie Federspiel
+     SPDX-License-Identifier: MIT -->
 <!-- Skeleton diagram. Copy this file and diagram.animation.js, rename the diagram label (here `skeleton`) in
      every id below and in the descriptor's `diagramLabel`, and replace the content. The structure is the
      markup contract: see renderers/anime-svg/markup-contract.md. Every id is `<name>-<diagram-label>`. -->
@@ -46,7 +48,7 @@
     <text id="dg-line-client-server-label-skeleton" class="diagram-line-label" x="522" y="200" dominant-baseline="central">TLS</text>
 
     <!-- A WATERMARK's zone (core/descriptor.md §3.3): a plain <rect>, no different from any other zone, except
-         it has no members and the descriptor's `watermark.zone` names it. The interpreter reads its x/y/width/
+         it has no members and the descriptor's `settings.attributionMetadata.zone` names it. The interpreter reads its x/y/width/
          height directly and injects the credit text inside; nothing here needs to hold that text itself.
          Placed at the top: the event log is an HTML overlay anchored to the bottom of the diagram (see
          shared.css), covering the bottom-left in rendered pixels regardless of the SVG's own coordinates, so

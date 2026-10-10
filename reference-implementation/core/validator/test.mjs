@@ -78,16 +78,16 @@ t("convergent lanes with different durations (warning)", (d) => {
   d.lanes[0].phases[0] = { name: "connect", timebox: "event-bounded", exit: "client-connected" }; d.lanes[0].phases[1] = { name: "steady", timebox: "open-ended" };
   d.nodes[1].gesture = false;
 }, ["warning:convergence"]);
-const modes = (o) => ({ default: "user-driven", toggle: true, simulated: { delay: 800, acknowledge: { color: "#1e88e5", duration: 400 } }, ...o });
-t("valid modes", (d) => { d.modes = modes(); }, []);
+const modes = (o) => ({ default: "user-driven", toggle: true, simulated: { delayMs: 800, acknowledge: { color: "#1e88e5", durationMs: 400 } }, ...o });
+t("valid modes", (d) => { (d.settings ??= {}).interactionModes = modes(); }, []);
 t("modes omitted is user-driven only", () => {}, []);
-t("bad default mode", (d) => { d.modes = modes({ default: "auto" }); }, ["error:modes"]);
-t("toggle allows automated but simulated is missing", (d) => { d.modes = modes({ simulated: undefined }); delete d.modes.simulated; }, ["error:modes"]);
-t("automated by default needs the acknowledgement", (d) => { d.modes = { default: "automated", toggle: false }; }, ["error:modes"]);
-t("user-driven and no toggle needs no acknowledgement", (d) => { d.modes = { default: "user-driven", toggle: false }; }, []);
-t("simulated acknowledgement without a color", (d) => { d.modes = modes(); delete d.modes.simulated.acknowledge.color; }, ["error:modes"]);
-t("negative simulated delay", (d) => { d.modes = modes(); d.modes.simulated.delay = -1; }, ["error:modes"]);
-t("toggle with no gesture node (warning)", (d) => { d.modes = modes(); d.nodes[1].gesture = false; d.lanes[0].phases[0] = { name: "connect", timebox: "event-bounded", exit: "client-connected" }; d.sequences[0].rules[0].on = { datum: "started" }; }, ["warning:modes"]);
+t("bad default mode", (d) => { (d.settings ??= {}).interactionModes = modes({ default: "auto" }); }, ["error:modes"]);
+t("toggle allows automated but simulated is missing", (d) => { (d.settings ??= {}).interactionModes = modes({ simulated: undefined }); delete d.settings.interactionModes.simulated; }, ["error:modes"]);
+t("automated by default needs the acknowledgement", (d) => { (d.settings ??= {}).interactionModes = { default: "automated", toggle: false }; }, ["error:modes"]);
+t("user-driven and no toggle needs no acknowledgement", (d) => { (d.settings ??= {}).interactionModes = { default: "user-driven", toggle: false }; }, []);
+t("simulated acknowledgement without a color", (d) => { (d.settings ??= {}).interactionModes = modes(); delete d.settings.interactionModes.simulated.acknowledge.color; }, ["error:modes"]);
+t("negative simulated delay", (d) => { (d.settings ??= {}).interactionModes = modes(); d.settings.interactionModes.simulated.delayMs = -1; }, ["error:modes"]);
+t("toggle with no gesture node (warning)", (d) => { (d.settings ??= {}).interactionModes = modes(); d.nodes[1].gesture = false; d.lanes[0].phases[0] = { name: "connect", timebox: "event-bounded", exit: "client-connected" }; d.sequences[0].rules[0].on = { datum: "started" }; }, ["warning:modes"]);
 t("markup key: a relative path is accepted", (d) => { d.markup = "example.diagram.html"; }, []);
 t("markup key: must be a non-empty string", (d) => { d.markup = ""; }, ["error:markup"]);
 t("markup key: an absolute path is an error", (d) => { d.markup = "/etc/passwd"; }, ["error:markup"]);
@@ -96,12 +96,12 @@ t("markup key: an existing file passes", (d) => { d.markup = "fixtures/minimal.a
 t("diagramLabel must be id-safe", (d) => { d.diagramLabel = "Login Flow"; }, ["error:shape"]);
 t("diagramLabel: lowercase, digits and hyphens is fine", (d) => { d.diagramLabel = "login-flow-2"; }, []);
 t("a REPLACE placeholder left in source, adaptation or explains is a warning", (d) => { d.sequences[0].source = "REPLACE: cite the code"; }, ["warning:placeholder"]);
-t("pace: a positive number is accepted", (d) => { d.pace = 1.5; }, []);
-t("pace: must be a positive number", (d) => { d.pace = 0; }, ["error:pace"]);
-t("pace: a negative number is an error", (d) => { d.pace = -1; }, ["error:pace"]);
-t("pace: a string is an error", (d) => { d.pace = "2"; }, ["error:pace"]);
-t("pace: more than ten times off is a warning", (d) => { d.pace = 50; }, ["warning:pace"]);
-t("pace: less than a tenth is a warning", (d) => { d.pace = 0.05; }, ["warning:pace"]);
+t("paceMultiplier: a positive number is accepted", (d) => { (d.settings ??= {}).paceMultiplier = 1.5; }, []);
+t("paceMultiplier: must be a positive number", (d) => { (d.settings ??= {}).paceMultiplier = 0; }, ["error:pace"]);
+t("paceMultiplier: a negative number is an error", (d) => { (d.settings ??= {}).paceMultiplier = -1; }, ["error:pace"]);
+t("paceMultiplier: a string is an error", (d) => { (d.settings ??= {}).paceMultiplier = "2"; }, ["error:pace"]);
+t("paceMultiplier: more than ten times off is a warning", (d) => { (d.settings ??= {}).paceMultiplier = 50; }, ["warning:pace"]);
+t("paceMultiplier: less than a tenth is a warning", (d) => { (d.settings ??= {}).paceMultiplier = 0.05; }, ["warning:pace"]);
 t("unknown asset (with an iconography)", () => {}, Array(6).fill("error:unknown-asset"), { assets: ["nothing"] });
 t("element missing from the markup", () => {}, ["error:markup", "error:markup", "error:markup", "error:markup", "error:markup", "error:markup", "error:markup"], { markup: "<svg></svg>" });
 t("unknown action", (d) => { d.sequences[0].rules[0].do.push({ explode: true }); }, ["error:shape"]);
@@ -165,35 +165,47 @@ t("showLocalStorage: must be an object", (d) => { d.nodes[0].showLocalStorage = 
 
 // ---- watermark (core/ontology.md "Watermark", core/descriptor.md section 3.3): attribution to the skill and the developer ----
 const withCreditsZone = (d) => { d.zones.push({ name: "credits", element: "dg-watermark", label: "Credits", members: { nodes: [], volumes: [] }, padding: { left: 6, top: 6, right: 6, bottom: 6 } }); };
-t("watermark: a minimal one (just a zone) is accepted", (d) => { withCreditsZone(d); d.watermark = { zone: "credits" }; }, []);
-t("watermark: repo, author, website and fade all set is accepted", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", repo: true, author: "Jane Doe", website: "https://example.com", fade: 8 }; }, []);
-t("watermark: fade false (permanent) is accepted", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", fade: false }; }, []);
-t("watermark: zone is required", (d) => { withCreditsZone(d); d.watermark = {}; }, ["error:shape", "warning:zone"]); // the now-orphaned credits zone still warns: it isn't referenced by name
-t("watermark: zone must resolve", (d) => { withCreditsZone(d); d.watermark = { zone: "nope" }; }, ["error:unresolved", "warning:zone"]);
-t("watermark: its zone must have no members", (d) => {
+t("attributionMetadata: a minimal one (just a zone) is accepted", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits" }; }, []);
+t("attributionMetadata: repo, author, website and fadeAfterSeconds all set is accepted", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", repo: true, author: "Jane Doe", website: "https://example.com", fadeAfterSeconds: 8 }; }, []);
+t("attributionMetadata: fadeAfterSeconds false (permanent) is accepted", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fadeAfterSeconds: false }; }, []);
+t("attributionMetadata: zone is required", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = {}; }, ["error:shape", "warning:zone"]); // the now-orphaned credits zone still warns: it isn't referenced by name
+t("attributionMetadata: zone must resolve", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "nope" }; }, ["error:unresolved", "warning:zone"]);
+t("attributionMetadata: its zone must have no members", (d) => {
   d.zones.push({ name: "credits", element: "dg-watermark", label: "Credits", members: { nodes: ["server"], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } });
-  d.watermark = { zone: "credits" };
+  (d.settings ??= {}).attributionMetadata = { zone: "credits" };
 }, ["error:shape"]);
-t("watermark: repo must be a boolean", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", repo: "yes" }; }, ["error:shape"]);
-t("watermark: author must be a non-empty string", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", author: "" }; }, ["error:shape"]);
-t("watermark: website must be a non-empty string", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", website: "" }; }, ["error:shape"]);
-t("watermark: a website with no http(s) prefix is a warning, not an error", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", website: "example.com" }; }, ["warning:shape"]);
-t("watermark: fade must be false or a positive number, not 0", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", fade: 0 }; }, ["error:shape"]);
-t("watermark: fade must be false or a positive number, not negative", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", fade: -1 }; }, ["error:shape"]);
-t("watermark: fade must be false or a positive number, not a string", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", fade: "8" }; }, ["error:shape"]);
-t("watermark: must be an object", (d) => { withCreditsZone(d); d.watermark = "credits"; }, ["error:shape", "warning:zone"]);
-t("watermark: an unknown key is a warning", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", color: "red" }; }, ["warning:unknown-key"]);
+t("attributionMetadata: repo must be a boolean", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", repo: "yes" }; }, ["error:shape"]);
+t("attributionMetadata: author must be a non-empty string", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", author: "" }; }, ["error:shape"]);
+t("attributionMetadata: website must be a non-empty string", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", website: "" }; }, ["error:shape"]);
+t("attributionMetadata: a website with no http(s) prefix is a warning, not an error", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", website: "example.com" }; }, ["warning:shape"]);
+t("attributionMetadata: fadeAfterSeconds must be false or a positive number, not 0", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fadeAfterSeconds: 0 }; }, ["error:shape"]);
+t("attributionMetadata: fadeAfterSeconds must be false or a positive number, not negative", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fadeAfterSeconds: -1 }; }, ["error:shape"]);
+t("attributionMetadata: fadeAfterSeconds must be false or a positive number, not a string", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fadeAfterSeconds: "8" }; }, ["error:shape"]);
+t("attributionMetadata: must be an object", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = "credits"; }, ["error:shape", "warning:zone"]);
+t("attributionMetadata: an unknown key is a warning", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", color: "red" }; }, ["warning:unknown-key"]);
+// ---- the settings block (core/descriptor.md section 2.1): the old top-level keys moved ----
+t("moved: pace is now settings.paceMultiplier", (d) => { d.pace = 2; }, ["error:moved"]);
+t("moved: modes is now settings.interactionModes", (d) => { d.modes = { default: "user-driven", toggle: false }; }, ["error:moved"]);
+t("moved: watermark is now settings.attributionMetadata", (d) => { d.watermark = { zone: "credits" }; }, ["error:moved"]);
+t("moved: simulated.delay is now delayMs", (d) => { (d.settings ??= {}).interactionModes = { default: "user-driven", toggle: true, simulated: { delay: 800, acknowledge: { color: "#1e88e5", durationMs: 400 } } }; }, ["error:moved"]);
+t("moved: simulated.acknowledge.duration is now durationMs", (d) => { (d.settings ??= {}).interactionModes = { default: "user-driven", toggle: true, simulated: { delayMs: 800, acknowledge: { color: "#1e88e5", duration: 400 } } }; }, ["error:moved"]);
+t("moved: attributionMetadata.fade is now fadeAfterSeconds", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fade: 8 }; }, ["error:moved"]);
+t("moved: gridLayer.step is now stepUserUnits", (d) => { (d.settings ??= {}).gridLayer = { enabled: false, step: 50 }; }, ["error:moved"]);
+t("moved: grid is now settings.gridLayer", (d) => { d.grid = { enabled: false }; }, ["error:moved"]);
+t("settings: an empty block is accepted", (d) => { d.settings = {}; }, []);
+t("settings: must be an object", (d) => { d.settings = true; }, ["error:shape"]);
+t("settings: an unknown key is a warning", (d) => { d.settings = { speed: 2 }; }, ["warning:unknown-key"]);
 // ---- grid (core/descriptor.md section 3.4): an authoring aid ----
-t("grid: switched off is accepted", (d) => { d.grid = { enabled: false, step: 50 }; }, []);
-t("grid: enabled warns, since it is an authoring aid", (d) => { d.grid = { enabled: true }; }, ["warning:grid"]);
-t("grid: enabled is required", (d) => { d.grid = { step: 50 }; }, ["error:shape"]);
-t("grid: enabled must be a boolean", (d) => { d.grid = { enabled: "yes" }; }, ["error:shape"]);
-t("grid: step must be a positive number", (d) => { d.grid = { enabled: false, step: 0 }; }, ["error:shape"]);
-t("grid: a very small step is a warning", (d) => { d.grid = { enabled: false, step: 2 }; }, ["warning:shape"]);
-t("grid: must be an object", (d) => { d.grid = true; }, ["error:shape"]);
-t("grid: an unknown key is a warning", (d) => { d.grid = { enabled: false, color: "red" }; }, ["warning:unknown-key"]);
+t("gridLayer: switched off is accepted", (d) => { (d.settings ??= {}).gridLayer = { enabled: false, stepUserUnits: 50 }; }, []);
+t("gridLayer: enabled warns, since it is an authoring aid", (d) => { (d.settings ??= {}).gridLayer = { enabled: true }; }, ["warning:grid"]);
+t("gridLayer: enabled is required", (d) => { (d.settings ??= {}).gridLayer = { stepUserUnits: 50 }; }, ["error:shape"]);
+t("gridLayer: enabled must be a boolean", (d) => { (d.settings ??= {}).gridLayer = { enabled: "yes" }; }, ["error:shape"]);
+t("gridLayer: stepUserUnits must be a positive number", (d) => { (d.settings ??= {}).gridLayer = { enabled: false, stepUserUnits: 0 }; }, ["error:shape"]);
+t("gridLayer: a very small stepUserUnits is a warning", (d) => { (d.settings ??= {}).gridLayer = { enabled: false, stepUserUnits: 2 }; }, ["warning:shape"]);
+t("gridLayer: must be an object", (d) => { (d.settings ??= {}).gridLayer = true; }, ["error:shape"]);
+t("gridLayer: an unknown key is a warning", (d) => { (d.settings ??= {}).gridLayer = { enabled: false, color: "red" }; }, ["warning:unknown-key"]);
 t("a watermark zone's own no-members warning is suppressed, but an unrelated empty zone still warns", (d) => {
-  withCreditsZone(d); d.watermark = { zone: "credits" };
+  withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits" };
   d.zones.push({ name: "other-empty", element: "dg-other-zone", label: "x", members: { nodes: [], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } });
 }, ["warning:zone"]);
 

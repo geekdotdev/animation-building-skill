@@ -112,8 +112,12 @@ fi
 # ---- the first diagram -----------------------------------------------------------------------------------------
 mkdir "$LABEL"
 # Every element id ends in the label: replace the one "skeleton" in each id attribute, and the descriptor's diagramLabel.
-sed -E "s/(id=\"[^\"]*)skeleton/\1${LABEL}/g" "$ANIME_SVG/skeleton/diagram.html" > "$LABEL/diagram.html"
-sed "s/diagramLabel: 'skeleton'/diagramLabel: '${LABEL}'/" "$ANIME_SVG/skeleton/diagram.animation.js" > "$LABEL/diagram.animation.js"
+# The skill and its reference implementation are MIT-licensed (Copyright Charlie Federspiel), and each file says so in its
+# first lines. These two files are the starting point of the new project's own work, not the skill's code, so the copies
+# are scrubbed of that notice: it is not this project's license to claim or to carry.
+sed -E "/^<!-- Copyright \(c\) /,/SPDX-License-Identifier:/d; s/(id=\"[^\"]*)skeleton/\1${LABEL}/g" "$ANIME_SVG/skeleton/diagram.html" > "$LABEL/diagram.html"
+sed "/^\/\/ Copyright (c) /d; /^\/\/ SPDX-License-Identifier: /d; s/diagramLabel: 'skeleton'/diagramLabel: '${LABEL}'/" "$ANIME_SVG/skeleton/diagram.animation.js" > "$LABEL/diagram.animation.js"
+! grep -qE 'SPDX-License-Identifier|Copyright \(c\)' "$LABEL/diagram.html" "$LABEL/diagram.animation.js" || die "could not scrub the skill's license notice from the copies"
 ! grep -q 'id="[^"]*skeleton' "$LABEL/diagram.html" || die "could not rename the skeleton's ids"
 grep -q "diagramLabel: '${LABEL}'" "$LABEL/diagram.animation.js" || die "could not rename the skeleton's diagramLabel"
 echo "created $LABEL/diagram.html and $LABEL/diagram.animation.js from the skeleton"

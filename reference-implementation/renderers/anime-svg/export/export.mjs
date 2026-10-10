@@ -158,10 +158,13 @@ export function fillTemplate(template, slots) {
 // ---- profile -----------------------------------------------------------------------------------
 export function applyBehavior(descriptor, behavior = {}) {
   const d = structuredClone(descriptor);
-  if (behavior.pace !== undefined) d.pace = behavior.pace; // the profile's pace replaces the descriptor's
-  delete d.grid; // the grid is an authoring aid (core/descriptor.md section 3.4): an export never carries it
+  // The profile's behavior keys (pace, mode, toggle) are its own; they land in the descriptor's `settings` block.
+  if (behavior.pace !== undefined || behavior.mode !== undefined || behavior.toggle !== undefined || d.settings?.gridLayer !== undefined) d.settings = { ...(d.settings ?? {}) };
+  if (behavior.pace !== undefined) d.settings.paceMultiplier = behavior.pace; // the profile's pace replaces the descriptor's
+  delete d.settings?.gridLayer; // the grid layer is an authoring aid (core/descriptor.md section 3.4): an export never carries it
   if (behavior.mode !== undefined || behavior.toggle !== undefined) {
-    d.modes = { ...(d.modes ?? {}), default: behavior.mode ?? d.modes?.default ?? "user-driven", toggle: behavior.toggle ?? d.modes?.toggle ?? false };
+    const m = d.settings.interactionModes;
+    d.settings.interactionModes = { ...(m ?? {}), default: behavior.mode ?? m?.default ?? "user-driven", toggle: behavior.toggle ?? m?.toggle ?? false };
   }
   return d;
 }
@@ -196,11 +199,11 @@ export function checkProfile(profile, descriptor, defined) {
 
   // gestures (ontology rules 13 and 17 to 19)
   const gestureNodes = (descriptor.nodes ?? []).filter((n) => n.gesture);
-  const eff = applyBehavior(descriptor, b).modes;
+  const eff = applyBehavior(descriptor, b).settings?.interactionModes;
   if (gestureNodes.length && profile.gestures === "none" && !(b.mode === "automated" && b.toggle === false)) {
     escalations.push(`escalation: the target can't take clicks, but the descriptor has gesture nodes (${gestureNodes.map((n) => n.name).join(", ")}). Set behavior { mode: 'automated', toggle: false } to press them for the viewer with a visible press, or decide to drop the phase or show a still frame (not implemented here).`);
   }
-  if (gestureNodes.length && (eff?.default === "automated" || eff?.toggle === true) && !eff?.simulated) err("automated mode needs the descriptor's modes.simulated (a visible press, ontology rule 18)");
+  if (gestureNodes.length && (eff?.default === "automated" || eff?.toggle === true) && !eff?.simulated) err("automated mode needs the descriptor's settings.interactionModes.simulated (a visible press, ontology rule 18)");
   return { errors, escalations };
 }
 
@@ -261,7 +264,8 @@ export function buildExport(input, { allowOpen = false, skipValidate = false } =
   // and padding) depends on it. A host page may not, so it is scoped to the diagram in every export.
   const base = `#diagram-${label}, #diagram-${label} * { box-sizing: border-box; }`;
   const style = [base, css, presentationCss(label, presentation, behavior)].filter(Boolean).join("\n\n");
-  const template = templates[profile.template ?? profile.packaging];
+  // A template carries the skill's license comment as its first lines; that comment is not part of what is exported.
+  const template = templates[profile.template ?? profile.packaging]?.replace(/^<!-- Copyright \(c\)[\s\S]*?SPDX-License-Identifier:[^\n]*-->\n/, "");
   if (template === undefined) throw new ExportError([`no template "${profile.template ?? profile.packaging}"`]);
 
   const sources = { descriptor: sha(JSON.stringify(embedded)), markup: sha(markup), "shared.css": sha(sharedCss), "diagram-shared.js": sha(sharedJs), interpreter: sha(interpreterSrc), profile: sha(JSON.stringify(profile)) };

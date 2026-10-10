@@ -74,6 +74,18 @@ t("export.sh recreates export/ after it is deleted", () => {
   assert.ok(fs.existsSync(path.join(PROJ, "export/login-flow-ghost-html-card.html")));
 });
 
+t("the new project's copies of the skeleton carry no license notice, and the skeleton itself still does", () => {
+  const skel = (f) => fs.readFileSync(path.join(HERE, "../skeleton", f), "utf8");
+  for (const f of ["diagram.html", "diagram.animation.js"]) assert.match(skel(f), /SPDX-License-Identifier: MIT/, `the skeleton's ${f} lost its notice`);
+  for (const f of ["login-flow/diagram.html", "login-flow/diagram.animation.js"]) {
+    const text = fs.readFileSync(path.join(PROJ, f), "utf8");
+    assert.doesNotMatch(text, /SPDX-License-Identifier|Copyright \(c\)/, `${f} still carries the skill's notice`);
+  }
+  // scrubbing removed only the notice: the descriptor still starts at its own first comment and the diagram at its own
+  assert.match(fs.readFileSync(path.join(PROJ, "login-flow/diagram.animation.js"), "utf8"), /^\/\/ Skeleton descriptor:/);
+  assert.match(fs.readFileSync(path.join(PROJ, "login-flow/diagram.html"), "utf8"), /^<!-- Skeleton diagram\./);
+});
+
 t("refuses a folder that already has files", () => {
   const r = init([PROJ, "--no-install", "--anime", ANIME]);
   assert.notEqual(r.status, 0);

@@ -42,7 +42,7 @@ A data-only module, `<name>.target.js`. Examples are in `profiles/`.
 | `template` | Optional. The name of a template, given in a file next to the profile, that puts the five slots wherever the target needs them. |
 | `assets.anime` | `'cdn'` (an `import` of the CDN URL, built from the app's anime.js version, or `assets.animeUrl`) or `'inline'` (anime.js pasted into the script, so it needs no network). |
 | `gestures` | `'live'` (the target can take clicks) or `'none'`. |
-| `behavior` | `mode` (`'user-driven'` or `'automated'`), `toggle` (show the mode switch), `replay` (`false` hides Replay), `pace` (a positive number: 2 is twice as slow, 0.5 twice as fast, replacing the descriptor's own). `mode` and `toggle` override the descriptor's `modes`. |
+| `behavior` | `mode` (`'user-driven'` or `'automated'`), `toggle` (show the mode switch), `replay` (`false` hides Replay), `pace` (a positive number: 2 is twice as slow, 0.5 twice as fast, replacing the descriptor's own). `mode` and `toggle` override the descriptor's `settings.interactionModes`. |
 | `presentation` | Parameters from the surface below, each a plain CSS value. |
 | `reasons` | **A reason for every presentation parameter** (ontology rule 12). |
 | `unverified` | What this export was not verified against. It is printed after the export. |

@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 Charlie Federspiel
+   SPDX-License-Identifier: MIT */
 /* Reference stylesheet for the anime.js interpreter: what renderers/anime-svg/markup-contract.md section 4 asks
    for, plus a plain look for the classes the skeleton uses. It stands alone: it needs no host page, wrapper or
    theme. Copy it and change the look. The rules marked BEHAVIOR are the contract, and the rest is taste. */

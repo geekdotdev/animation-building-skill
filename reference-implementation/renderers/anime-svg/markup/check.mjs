@@ -67,7 +67,7 @@ export function checkMarkup(descriptor, html) {
   const replay = doc.byId.get(`diagram-${label}-replay`);
   if (!replay || replay.tag !== "button" || !hasClass(replay, "diagram-replay") || (footer && !isInside(replay, footer)))
     err("replay", "replay", `the footer needs <button class="diagram-replay" type="button" id="diagram-${label}-replay">`);
-  if (descriptor.modes?.toggle === true && !footer) err("footer", "footer", "modes.toggle is set, and the mode switch is placed in the footer");
+  if (descriptor.settings?.interactionModes?.toggle === true && !footer) err("footer", "footer", "settings.interactionModes.toggle is set, and the mode switch is placed in the footer");
 
   // --- every element the descriptor names, by id, inside the SVG
   const el = (name, element, kind) => {
@@ -111,9 +111,9 @@ export function checkMarkup(descriptor, html) {
   for (const z of descriptor.zones ?? []) {
     const e = el(z.name, z.element, "zone");
     if (!e) continue;
-    const isWatermark = descriptor.watermark?.zone === z.name;
-    if (e.tag !== "rect") (isWatermark ? err : warn)("element", `zone ${z.name}`, `a zone is drawn as a <rect>, not <${e.tag}>${isWatermark ? " (the watermark reads its x/y/width/height directly, so it must be a <rect>)" : ""}`);
-    else if (isWatermark) for (const attr of ["x", "y", "width", "height"]) if (e.attrs[attr] === undefined || !/^-?\d/.test(e.attrs[attr])) err("element", `zone ${z.name}`, `the watermark's rect needs a numeric ${attr} attribute`);
+    const isAttribution = descriptor.settings?.attributionMetadata?.zone === z.name;
+    if (e.tag !== "rect") (isAttribution ? err : warn)("element", `zone ${z.name}`, `a zone is drawn as a <rect>, not <${e.tag}>${isAttribution ? " (the attribution box reads its x/y/width/height directly, so it must be a <rect>)" : ""}`);
+    else if (isAttribution) for (const attr of ["x", "y", "width", "height"]) if (e.attrs[attr] === undefined || !/^-?\d/.test(e.attrs[attr])) err("element", `zone ${z.name}`, `the attribution box's rect needs a numeric ${attr} attribute`);
   }
   for (const v of descriptor.volumes ?? []) {
     const e = el(v.name, v.element, "volume"); if (!e) continue;
@@ -139,7 +139,7 @@ export function checkStylesheet(css, descriptor = {}) {
   for (const c of REQUIRED_CLASSES) if (!new RegExp(`\\.${c}(?![\\w-])`).test(bare)) out.push({ level: "warning", code: "stylesheet", where: `.${c}`, message: `no rule uses the class .${c}, which the markup or interpreter relies on` });
   if ((descriptor.volumes ?? []).length && !/\[id\^=["']?dg-vol-/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: "volumes", message: 'no rule sets [id^="dg-vol-"] { transform-box: fill-box; transform-origin: center; }, so docked volumes scale from the wrong point' });
   if (usesCrawlerBox(descriptor) && !/\.diagram-crawler-box(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-crawler-box", message: "a composite crawler uses box: true, but no rule styles .diagram-crawler-box, so it will render unstyled (default black fill)" });
-  if (descriptor.watermark && !/\.diagram-watermark-text(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-watermark-text", message: "the descriptor has a watermark, but no rule styles .diagram-watermark-text, so its credit lines will render in the SVG's default text style" });
+  if (descriptor.settings?.attributionMetadata && !/\.diagram-watermark-text(?![\w-])/.test(bare)) out.push({ level: "warning", code: "stylesheet", where: ".diagram-watermark-text", message: "the descriptor has attribution metadata, but no rule styles .diagram-watermark-text, so its credit lines will render in the SVG's default text style" });
   // The event log's mobile hard rule (core/ontology.md rule 27): a 600px @media block moving it
   // out of its overlaid position, below the diagram. A regex spot-check, like the others here —
   // not full CSS parsing — so it assumes a single, simple media block, same as the reference one.

@@ -12,6 +12,27 @@ export default {
   markup: 'diagram.html',              // the diagram's SVG, relative to this file
   title: 'Skeleton: a client asks a server for a page',
 
+  // The run-time switches, all in one place (core/descriptor.md §2.1): edit these directly, no skill needed.
+  settings: {
+    // One factor on every duration and delay in the descriptor and on every channel's `duration`. 1 is as authored,
+    // 2 is twice as slow, 0.5 twice as fast. It scales everything equally, so what should finish together still does.
+    paceMultiplier: 1,
+
+    // User-driven by default. The viewer may switch to automated (`toggle`), which presses each armed step for them
+    // after `simulated.delayMs` milliseconds with a short glow on the pressed node.
+    interactionModes: { default: 'user-driven', toggle: true, simulated: { delayMs: 800, acknowledge: { color: '#1e88e5', durationMs: 400 } } },
+
+    // Credit to the skill and, optionally, the author (core/descriptor.md §3.3). `author` is left out on purpose: omitted,
+    // it falls back to whatever the host (build-site.mjs, export.mjs) resolves as this machine's git identity (`git var
+    // GIT_AUTHOR_IDENT`), so a copy of this skeleton credits whoever's machine built it, with no edit needed.
+    // `fadeAfterSeconds`: visible for 8 seconds, then fades.
+    attributionMetadata: { zone: 'credits', repo: true, fadeAfterSeconds: 8 },
+
+    // Authoring aid (core/descriptor.md §3.4): a numbered grid over the canvas, in the SVG's own coordinates.
+    // Set enabled: true while placing things; the validator warns until it is false again.
+    gridLayer: { enabled: false, stepUserUnits: 50 },
+  },
+
   nodes: [
     { name: 'config-source', element: 'dg-init-source', label: 'Config source', group: true },
     { name: 'server', element: 'dg-box-server', label: 'Server' },
@@ -25,7 +46,7 @@ export default {
   ],
   zones: [
     { name: 'trusted', element: 'dg-zone-trusted', label: 'Trusted network', members: { nodes: ['server'], volumes: ['config'] }, padding: { left: 20, top: 35, right: 30, bottom: 55 } },
-    // A watermark's zone has no members: it's an attribution box, not a trust boundary (core/descriptor.md §3.3).
+    // The attribution box's zone has no members: it's not, not a trust boundary (core/descriptor.md §3.3).
     { name: 'credits', element: 'dg-zone-credits', label: 'Credits', members: { nodes: [], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } },
   ],
   volumes: [
@@ -37,20 +58,6 @@ export default {
   // something this descriptor can change.
   eventLog: { element: 'log' },
   durations: { reveal: 700, acknowledge: 700, dock: 900 },
-
-  // Pace: one factor on every duration and delay above and on every channel's `duration`. 1 is as authored, 2 is
-  // twice as slow, 0.5 twice as fast. It scales everything equally, so what should finish together still does.
-  pace: 1,
-
-  // Attribution (core/descriptor.md §3.3). `author` is left out on purpose: omitted, it falls back to
-  // whatever the host (build-site.mjs, export.mjs) resolves as this machine's git identity (`git var
-  // GIT_AUTHOR_IDENT`), so a copy of this skeleton credits whoever's machine built it, with no edit needed.
-  // Visible for 8s, then fades.
-  watermark: { zone: 'credits', repo: true, fade: 8 },
-
-  // Authoring aid (core/descriptor.md §3.4): a numbered grid over the canvas, in the SVG's own coordinates.
-  // Set enabled: true while placing things; the validator warns until it is false again.
-  grid: { enabled: false, step: 50 },
 
   datums: [
     // Satisfied when the volume has docked. Its closing acknowledgement is the server's glow, and its triggers
@@ -98,8 +105,4 @@ export default {
   ],
 
   overlays: [],
-
-  // User-driven by default. The viewer may switch to automated, which presses each armed step for them after
-  // 800 ms with a short blue glow on the pressed node.
-  modes: { default: 'user-driven', toggle: true, simulated: { delay: 800, acknowledge: { color: '#1e88e5', duration: 400 } } },
 };

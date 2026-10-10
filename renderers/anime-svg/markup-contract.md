@@ -57,7 +57,7 @@ So the file needn't and mustn't set these itself:
 - **Crawlers**, one SVG element per asset in flight, appended to the `<svg>` with class `diagram-crawler`. A **composite crawler** (a move or divergence with `assets`, core/descriptor.md §3.1) is a `<g class="diagram-crawler diagram-crawler-composite">` holding one icon per asset, side by side; its optional bounding box (`box: true`) is a `<rect class="diagram-crawler-box">`, the group's first child.
 - **Classes:** `diagram-glow` on an acknowledged element, `diagram-clickable` on an armed gesture node.
 - **Inline styles:** `opacity` on revealed lines and labels, `stroke` and `stroke-width` while glowing, and `transform` on volumes as they dock. Replay clears them.
-- **The mode switch**, `label.diagram-mode-toggle`, inserted first in the footer when `modes.toggle` is set.
+- **The mode switch**, `label.diagram-mode-toggle`, inserted first in the footer when `settings.interactionModes.toggle` is set.
 - **A node's local storage display** (a node with `showLocalStorage`, core/descriptor.md §3.2): a `<g class="diagram-storage-display diagram-storage-overlay">` or `diagram-storage-adjacent`, created the first time that node holds something and repopulated as it grows. It reuses `.diagram-crawler-box` for `adjacent`'s bounding box; `overlay` has none.
 - **Text:** narration into the log, and each gesture node's `.diagram-hint`.
 

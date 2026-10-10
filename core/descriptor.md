@@ -29,13 +29,17 @@ export default {
   diagramLabel: 'callout-pop-zero-permission',   // the diagram's id suffix
   markup: 'gateways/callout-pop-zero-permission-gateway.html',   // the diagram's SVG, a path relative to this file
   title: 'Auth-Callout: BFF-Initiated SPA Login, PoP Zero Permission',
+  settings: {                           // the run-time switches, all in one block (§2.1)
+    paceMultiplier: 1,                  // one factor on every duration and delay: 2 is twice as slow
+    interactionModes: { default: 'user-driven', toggle: true, simulated: { delayMs: 800, acknowledge: { color: '#1e88e5', durationMs: 400 } } },
+    attributionMetadata: { zone: 'credits', repo: true, fadeAfterSeconds: 8 },
+    gridLayer: { enabled: false, stepUserUnits: 50 },
+  },
   nodes: [ … ], channels: [ … ], zones: [ … ], volumes: [ … ],
   eventLog: { element: 'log' },
   durations: { … },
   datums: [ … ], lanes: [ … ], sequences: [ … ],
   overlays: [ … ],
-  pace: 1,                              // one factor on every duration and delay: 2 is twice as slow
-  modes: { default: 'user-driven', toggle: true, simulated: { delay: 800, acknowledge: { color: '#1e88e5', duration: 400 } } },
 }
 ```
 
@@ -45,20 +49,28 @@ export default {
 | `markup` | Where the diagram's SVG lives: a path **relative to this file**, to a page or a file holding the diagram. The tools take the `<div class="diagram">` block from it, and it must meet the renderer's markup contract (for anime.js, `renderers/anime-svg/markup-contract.md`). A pointer only: the descriptor still holds no geometry, and the exporter leaves the path out of what it writes. Optional. | |
 | `nodes` | `{ name, label?, gesture?, showLocalStorage? }`. `gesture: true` makes it a gesture target and gives it a hint element. `showLocalStorage: { position, offset? }` displays that node's local storage (§3.2): `position` is `'overlay'` or `'adjacent'` (`adjacent` needs an `offset: { x, y }`; `overlay` must not have one). | node, local storage |
 | `channels` | `{ name, a, b, duration, visibility, style?, label?, authenticated?, authenticatedBy? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. `authenticated: false` declares the channel's authentication as a tracked state (starts false, like `visibility` starts hidden); `authenticatedBy` names the datum whose `acknowledge` targets this channel — that's what sets it `true`. Both optional, and `authenticatedBy` is required whenever `authenticated` is declared. Declaring this doesn't gate anything by itself: nothing currently requires a move onto an `authenticated` channel to check it. | channel, line |
-| `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as a watermark's box (§3.3). | zone |
+| `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as the attribution box (§3.3). | zone |
 | `volumes` | `{ name, label, consumer, offset }`. The start position stays in the SVG. The offset is the docking move. | metaphor asset |
 | `eventLog` | `{ element }`. Required. Declares the diagram's narration log as an explicit construct rather than an assumed part of the markup contract — `element` names it the same way every other construct is named, so the validator can check it resolves. Its id and class convention (`diagram-<diagram-label>-log`, class `diagram-log`) is fixed by the markup contract and doesn't vary by `element`'s value; geometry and position stay out of the descriptor, same as everywhere else — on a narrow viewport (600px or less) it moves out of its overlay position to sit below the diagram, a hard rule with no per-diagram opt-out. | event log |
 | `durations` | Named durations, optionally linked: `{ handshakeLeg: { link: 'channel:logging-client' } }`. | timebox, convergence |
 | `datums` | See §4. | datum |
 | `lanes` | See §5. | lane, phase |
 | `sequences` | See §3. | sequence |
-| `pace` | A positive number, default 1: a factor on **every** duration and delay in the run, so 2 is twice as slow and 0.5 twice as fast. To change overall speed, change this and not each duration. Optional. See §9.11. | pace |
-| `modes` | `{ default, toggle, simulated }`. `default` is `'user-driven'` or `'automated'`. `toggle: true` lets the viewer switch (the renderer puts a switch beside Replay), and `false` fixes the mode at `default`. `simulated: { delay, acknowledge: { color, duration } }` is required when the mode can be automated: `delay` is the ms between a gesture being armed and its simulated press, and `acknowledge` is the short glow that shows the press. See §9.10. Omitted means user-driven only, with no toggle. | interaction mode, simulated gesture |
+| `settings` | `{ paceMultiplier?, interactionModes?, attributionMetadata?, gridLayer? }`. The four run-time switches, kept together at the top of the file so they can be set by hand, without the skill. Optional; each omitted switch takes its default. See §2.1. | pace, interaction mode, attribution metadata, grid layer |
 | `strict` | A boolean, default `false`: every move's and divergence's assets must be in its origin node's local storage (§3.2). Local storage is tracked either way; this only makes an unstored send an error. | local storage |
-| `watermark` | `{ zone, repo?, author?, website?, fade? }`. Attribution to the skill and the developer (§3.3). Optional; omitted means no watermark at all. | watermark |
-| `grid` | `{ enabled, step? }`. A numbered coordinate grid drawn over the canvas, for authoring (§3.4). Optional; omitted means no grid. `enabled` is the static on/off switch, so the grid can stay in the descriptor while switched off. | grid |
 | `overlays` | `{ channel, lanes, precedence, conflicts? }`. Required when different assets from two lanes (or phases) can coincide on a channel, which is an **escalation**. `precedence` is `[lane names]`, first wins, or `'unresolved'` while the user hasn't answered (a descriptor with any is a draft). `conflicts` lists the asset pairs that differ, so the question can be specific. Identical assets need no entry. The newest is on top if the user gives no precedence. | overlay precedence |
 | `validatorExceptions` | `[{ check: 'overlay', channel, reason }]`. Optional. Records that the user has looked at a specific overlay conflict and verified it can't actually happen, so the validator stops escalating it — the conflict is still real and still found, it just no longer blocks the agent. `reason` is a short string; `'temporallySeparated'` is the one defined value so far. It also drops that channel from the "an overlay is unresolved, so mark `draft: true`" requirement, since an exempted conflict isn't an open question anymore. A stale entry (the conflict it names no longer exists) is flagged. | validator exception |
+
+### 2.1 Settings
+
+The switches that change how a diagram runs or what is drawn over it, rather than what it says, all live in one `settings` block right after `title`, so they can be changed by editing the file directly. Each key is optional, and an omitted one takes its default. They used to be four separate top-level keys (`pace`, `modes`, `watermark`, `grid`); the validator reports one of those with the error `moved`, naming where it went.
+
+| Key | Content | Ontology term |
+|---|---|---|
+| `paceMultiplier` | A positive number, default 1: a factor on **every** duration and delay in the run, so 2 is twice as slow and 0.5 twice as fast. To change overall speed, change this and not each duration. Optional. See §9.11. | pace |
+| `interactionModes` | `{ default, toggle, simulated }`. `default` is `'user-driven'` or `'automated'`. `toggle: true` lets the viewer switch (the renderer puts a switch beside Replay), and `false` fixes the mode at `default`. `simulated: { delayMs, acknowledge: { color, durationMs } }` is required when the mode can be automated: `delayMs` is the ms between a gesture being armed and its simulated press, and `acknowledge` is the short glow that shows the press. See §9.10. Omitted means user-driven only, with no toggle. | interaction mode, simulated gesture |
+| `attributionMetadata` | `{ zone, repo?, author?, website?, fadeAfterSeconds? }`. Attribution to the skill and the developer (§3.3). Optional; omitted means no attribution box at all. | attribution metadata |
+| `gridLayer` | `{ enabled, stepUserUnits? }`. A numbered coordinate grid drawn over the canvas, for authoring (§3.4). Optional; omitted means no grid. `enabled` is the static on/off switch, so the grid layer can stay in the descriptor while switched off. | grid |
 
 ## 3. Sequences, rules, triggers and actions
 
@@ -148,7 +160,7 @@ Storage only grows. Nothing removes an asset once it's there, and there is no se
 
 `position: 'overlay'` centres the icons on the node's own box. `'adjacent'` draws them in a small bounding box beside it, at `offset` from the node (diagram units, like a volume's docking offset). `offset` is required for `adjacent` and invalid for `overlay`.
 
-## 3.3 Watermark: attribution to the skill and the developer
+## 3.3 Attribution metadata: credit to the skill and the developer
 
 An attribution box, credit to the skill and, optionally, to whoever authored the diagram. Its position and size are a **zone with no members** — reusing the zone construct rather than adding a new geometry-holding field, since geometry already stays in the SVG for every other construct:
 
@@ -156,33 +168,35 @@ An attribution box, credit to the skill and, optionally, to whoever authored the
 zones: [
   { name: 'credits', element: 'dg-zone-credits', label: 'Credits', members: { nodes: [], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } },
 ],
-watermark: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://jane.dev', fade: 8 },
+settings: {
+  attributionMetadata: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://jane.dev', fadeAfterSeconds: 8 },
+},
 ```
 
 | Key | Meaning |
 |---|---|
 | `zone` | Required: the name of a zone to use as the box. That zone must have **no members** — an attribution box, not a trust boundary. |
 | `repo` | Optional, default `true`: a credit line naming this skill. `false` omits it. |
-| `author` | Optional, and the only source: the agent authoring the descriptor states it explicitly (`core/ontology.md` §E, explicit intent) if the watermark should credit someone. The renderer does no host-environment interpolation to fill this in — no git-identity lookup, nothing implicit — so it stays correct however the descriptor ends up served: exported to a static file, loaded straight into `createInterpreter` by a hand-wired host page, or anything else. Omitted, the author line is simply left out. |
+| `author` | Optional, and the only source: the agent authoring the descriptor states it explicitly (`core/ontology.md` §E, explicit intent) if the attribution should credit someone. The renderer does no host-environment interpolation to fill this in — no git-identity lookup, nothing implicit — so it stays correct however the descriptor ends up served: exported to a static file, loaded straight into `createInterpreter` by a hand-wired host page, or anything else. Omitted, the author line is simply left out. |
 | `website` | Optional. If given alongside `author`, the author's name becomes a link to it. |
-| `fade` | Optional: seconds until it fades out, once, after the diagram starts. `false` (the default if omitted) means **permanent**: it stays visible for the whole run. |
+| `fadeAfterSeconds` | Optional: seconds until it fades out, once, after the diagram starts. `false` (the default if omitted) means **permanent**: it stays visible for the whole run. |
 
-- **Visible on start**, always — there's no "reveal" for a watermark; it's already there in the SVG.
-- **Permanently static.** Its position never changes, whatever `fade` is set to. The only thing that can animate is opacity, once, on the fade.
+- **Visible on start**, always — there's no "reveal" for the attribution box; it's already there in the SVG.
+- **Permanently static.** Its position never changes, whatever `fadeAfterSeconds` is set to. The only thing that can animate is opacity, once, on the fade.
 - **Reset** returns it to visible and restarts the fade timer, exactly like anything else Reset returns to its start.
 
-## 3.4 Grid: reading coordinates off the drawing
+## 3.4 Grid layer: reading coordinates off the drawing
 
 An authoring aid for placing and nudging things in the SVG. When a box moves 20 units it is hard to see that anything changed; with the grid on, the numbers say where everything is.
 
 ```js
-grid: { enabled: true, step: 50 },
+settings: { gridLayer: { enabled: true, stepUserUnits: 50 } },
 ```
 
 | Key | Meaning |
 |---|---|
-| `enabled` | Required: `true` draws the grid, `false` does not. This is the whole toggle: a static setting in the descriptor, not a control the viewer sees. Leave `grid` in place with `enabled: false`, or delete it, once the layout is settled. |
-| `step` | Optional, default 50: the distance between lines, in the SVG's user units. Every second line is slightly stronger. |
+| `enabled` | Required: `true` draws the grid, `false` does not. This is the whole toggle: a static setting in the descriptor, not a control the viewer sees. Leave `gridLayer` in place with `enabled: false`, or delete it, once the layout is settled. |
+| `stepUserUnits` | Optional, default 50: the distance between lines, in the SVG's user units. Every second line is slightly stronger. |
 
 - **The origin is the canvas's native one.** The numbers are the SVG's own user-space coordinates, taken from its `viewBox`: a viewBox starting at `0 0` has 0 at the top-left corner, and one with a negative min-x or min-y shows negative numbers there. A number read off the grid is the number to write in the SVG.
 - **Numbers sit inside the canvas edge**: column numbers along the top, row numbers along the left, each beside its line.
@@ -278,8 +292,9 @@ These are the checks of the validator (`reference-implementation/core/validator/
 |---|---|
 | A move, divergence or arrival has exactly one of `asset` or `assets` (at least two names); `box` only with `assets` | composite crawler |
 | With `strict: true`, every move's and divergence's assets are in its origin's local storage (built from arrivals and `store` actions) | local storage |
-| A watermark's `zone` resolves, and it has no members | watermark |
-| `grid.enabled` is a boolean and `step`, if given, is a positive number; a **warning** while the grid is enabled (it is an authoring aid) | grid |
+| The attribution box's `zone` (`settings.attributionMetadata.zone`) resolves, and it has no members | attribution metadata |
+| `settings.gridLayer.enabled` is a boolean and `stepUserUnits`, if given, is a positive number; a **warning** while the grid layer is enabled (it is an authoring aid) | grid layer |
+| A descriptor still using a top-level `pace`, `modes`, `watermark` or `grid` is an **error** (`moved`) naming the `settings` key that replaced it | settings |
 | Names and durations resolve, and every asset exists in `ICONOGRAPHY` (`diagram-shared.js`; `domains/nats-oidc/iconography.md` is an example seed of it) | integrity |
 | Every sequence has a fidelity; `faithful` and `adapted` have a `source`; `adapted` has an `adaptation`; `metaphor` has `explains` | ontology, fidelity |
 | Every lane has one `subject`; phases chain by exit datum | rules 1 and 5 |
@@ -334,20 +349,20 @@ Reset returns every kind of state in 9.2 to its start and invalidates everything
 7. **Lane reset:** firing a lane's `resetTrigger` returns only that lane to its first phase, invalidates only its own pending behavior, and makes the datums it satisfied unsatisfied (ontology rule 10). This needs a generation per lane. Nothing implements it yet: tell the user rather than fake it with a global Reset.
 
 ### 9.10 Interaction mode
-The descriptor's `modes` (§2) declares the default mode and whether the viewer can switch it. Ontology rules 17 to 19 apply:
+The descriptor's `settings.interactionModes` (§2.1) declares the default mode and whether the viewer can switch it. Ontology rules 17 to 19 apply:
 1. **Same lifecycle in both modes.** A simulated gesture goes through the same gate as a real one (9.4): it fires only in a phase that arms it, it is consumed, it clears the hint, and its rules and datums follow. Only who performs the gesture differs.
-2. **Simulation.** In automated mode, once a gesture node is armed (and not consumed), the renderer waits `modes.simulated.delay`, then plays `modes.simulated.acknowledge` on that node (the press), and only when that finishes performs the gesture. A phase is simulated once per entry, so an open-ended phase that arms a gesture is pressed once.
+2. **Simulation.** In automated mode, once a gesture node is armed (and not consumed), the renderer waits `settings.interactionModes.simulated.delayMs`, then plays `settings.interactionModes.simulated.acknowledge` on that node (the press), and only when that finishes performs the gesture. A phase is simulated once per entry, so an open-ended phase that arms a gesture is pressed once.
 3. **Re-checked before it fires.** The gesture is dropped if the node is no longer armed when the acknowledgement finishes (the viewer clicked first, the mode changed, or Reset happened).
 4. **Switching.** To user-driven: every pending simulated gesture is cancelled, and a press acknowledgement in progress is cancelled with it, so the glow stops and nothing fires. To automated: whatever is armed at that moment is simulated. Reset keeps the mode.
-5. **The toggle** is present only when `modes.toggle` is true. The renderer places it beside Replay. It is a lifecycle control like Reset, not a gesture (ontology rules 20 and 21): no phase arms it, it isn't consumed or simulated, it fires no rule, and using it never disturbs the run.
+5. **The toggle** is present only when `settings.interactionModes.toggle` is true. The renderer places it beside Replay. It is a lifecycle control like Reset, not a gesture (ontology rules 20 and 21): no phase arms it, it isn't consumed or simulated, it fires no rule, and using it never disturbs the run.
 6. **Observable:** each gesture is reported as `by: 'user'` or `by: 'simulated'`.
 
 ### 9.11 Pace
-The descriptor's `pace` (default 1) is a factor on every time value the interpreter uses, and the interpreter applies it in one place. Ontology rule 22 applies:
-1. **Everything scales, by the same factor:** each channel's and move's `duration`, the named `durations`, every `after` delay, `repeat` intervals, `{ delay }` conditions, the crawler fade-out at the end of a move, and the simulated press (`modes.simulated.delay` and its glow).
+The descriptor's `settings.paceMultiplier` (default 1) is a factor on every time value the interpreter uses, and the interpreter applies it in one place. Ontology rule 22 applies:
+1. **Everything scales, by the same factor:** each channel's and move's `duration`, the named `durations`, every `after` delay, `repeat` intervals, `{ delay }` conditions, the crawler fade-out at the end of a move, and the simulated press (`settings.interactionModes.simulated.delayMs` and its glow).
 2. **Relationships are preserved.** Legs that were given one duration stay equal, so sequences that finish together still do, and a datum's acknowledgement still follows the arrival that satisfied it.
-3. **Overrides.** A host can override `pace` (the test page's `?pace=2`, an export profile's `behavior.pace`). The override replaces the descriptor's value, and doesn't multiply it.
-4. **Validation.** `pace` must be a positive number. A value more than ten times faster or slower than authored is a warning.
+3. **Overrides.** A host can override the pace multiplier (the test page's `?pace=2`, an export profile's `behavior.pace`). The override replaces the descriptor's value, and doesn't multiply it.
+4. **Validation.** `settings.paceMultiplier` must be a positive number. A value more than ten times faster or slower than authored is a warning.
 5. **What it doesn't change:** what is narrated, the order of events, or which gestures are armed. A user-paced step still waits for the viewer, however slow the pace.
 
 ### 9.8 What stays with the descriptor author

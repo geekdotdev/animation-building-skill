@@ -40,11 +40,11 @@ Terms (transition, arrival, effect, timebox, convergence) are in `core/ontology.
 - **Convention: start what needs no user immediately.** Autonomous parts begin as soon as their precondition is met. Nothing waits for a gesture unless a real client would wait.
 - **Convention: keep a loop slow.** A steady cadence should read as "alive" without competing with a one-time flow.
 - **The viewer's wait is a design cost.** Extra narration adds its full spacing to the time before the first interaction.
-- **Change the overall speed with `pace`, not by editing durations.** The descriptor's `pace` scales every duration and delay by one factor (ontology rule 22), so what must finish together still does. Editing durations one by one is for changing a single channel or step, and a literal number that isn't linked to a channel won't follow a change to it.
+- **Change the overall speed with `settings.paceMultiplier`, not by editing durations.** The descriptor's `settings.paceMultiplier` scales every duration and delay by one factor (ontology rule 22), so what must finish together still does. Editing durations one by one is for changing a single channel or step, and a literal number that isn't linked to a channel won't follow a change to it.
 
 ## 5. Delivery targets
 
-A target with no gestures can't run a user-paced phase. It must declare how to render it (`core/ontology.md`, section F, rule 13): drop the phase, run it in automated mode (the descriptor's `modes`, with a visibly acknowledged simulated gesture and its `delay`), or a static frame. The agent escalates to the user for the choice.
+A target with no gestures can't run a user-paced phase. It must declare how to render it (`core/ontology.md`, section F, rule 13): drop the phase, run it in automated mode (the descriptor's `settings.interactionModes`, with a visibly acknowledged simulated gesture and its `delay`), or a static frame. The agent escalates to the user for the choice.
 
 ## 6. Changing a timing
 

@@ -34,7 +34,7 @@ Why not text replacement on the source: it couples the export to the source's *f
 
 **Presentation parameters.** Name each one after what it controls (`--diagram-width`, `--log-font-size`, `--replay-padding`, …) with the application's current value as its default. Set them on the diagram's own root element so a host page's rules for `p` or `button` can't override them. The specificity fix then lives once, in the source rules, not in each export. A table of one project's parameters and values is in `examples/nats-nkey-demo/ghost-export.md`.
 
-**Behavior parameters** *(proposed)*: `armedGestures` (`all`, or a list), `mode` (the default interaction mode, and whether the toggle is shown: the descriptor's `modes`; ties to rules 13 and 17 to 19), `replay` (present or not).
+**Behavior parameters** *(proposed)*: `armedGestures` (`all`, or a list), `mode` (the default interaction mode, and whether the toggle is shown: the descriptor's `settings.interactionModes`; ties to rules 13 and 17 to 19), `replay` (present or not).
 
 **Packaging slots**: `header`, `diagram`, `style`, `script`, `asset-url`.
 
@@ -54,7 +54,7 @@ Why not text replacement on the source: it couples the export to the source's *f
 `reference-implementation/renderers/anime-svg/export/` is an exporter for the anime.js renderer. It takes the descriptor and a target profile and writes one self-contained file. How it maps to this file:
 
 - **Presentation** uses the parameter surface in `surface.mjs`: each parameter is a custom property on the diagram's root id, and the rules it drives are scoped to that id (the specificity strategy). **Deviation from the method above:** the application's own CSS doesn't define these properties, so the exporter defines the surface itself and emits the rules, instead of reading defaults from the source. When an application's CSS defines them, a profile can set them directly.
-- **Behavior** is the profile's `behavior` (`mode`, `toggle`, `replay`, `pace`), applied to a copy of the descriptor: `modes` for the first two, and `pace` (ontology rule 22) for how fast everything runs.
+- **Behavior** is the profile's `behavior` (`mode`, `toggle`, `replay`, `pace`), applied to a copy of the descriptor: `settings.interactionModes` for the first two, and `settings.paceMultiplier` (ontology rule 22) for how fast everything runs.
 - **Packaging** is a template with the slots `header`, `style`, `diagram`, `script` and `asset-url`.
 - **Generator checks:** an unknown parameter, a parameter with no reason, or one whose target isn't in the exported diagram is an error, and so is an unfilled slot in the output.
 - **Staleness:** the export's header records a hash of each source, and `--check` compares a fresh export with an existing file.

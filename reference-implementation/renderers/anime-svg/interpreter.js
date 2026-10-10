@@ -14,11 +14,11 @@
 // `onEvent(e)` is optional and receives { t, type, ... } for every datum, narration, move and
 // arrival: it is how the test page in ./test/ observes a run.
 //
-// Interaction mode (core/ontology.md rules 17 to 19; descriptor `modes`): 'user-driven' or 'automated'.
+// Interaction mode (core/ontology.md rules 17 to 19; descriptor `settings.interactionModes`): 'user-driven' or 'automated'.
 // In automated mode the interpreter presses each armed gesture node on the viewer's behalf: after
-// `modes.simulated.delay` it plays `modes.simulated.acknowledge` (a short coloured glow) on the node,
+// `settings.interactionModes.simulated.delayMs` it plays `settings.interactionModes.simulated.acknowledge` (a short coloured glow) on the node,
 // then performs the gesture through the same path as a click, so gating, consumption, hints and
-// datums behave exactly as they do for a user. `modes.toggle` puts a switch beside Replay.
+// datums behave exactly as they do for a user. `settings.interactionModes.toggle` puts a switch beside Replay.
 // `env.mode` overrides the descriptor's default (a host decision, e.g. a test URL).
 //
 // Composite crawlers (core/ontology.md, Composite crawler; core/descriptor.md section 3.1): a move or
@@ -26,7 +26,7 @@
 // diagram units apart, default 11), optionally in a bounding box via `box: true`). No helper change is
 // needed: each icon is drawn exactly as it would be alone, one call to createCrawlerElement per name.
 //
-// Pace (the descriptor's `pace`, overridden by `env.pace`): a factor on every duration and delay. 2 is twice as
+// Pace (the descriptor's `settings.paceMultiplier`, overridden by `env.pace`): a factor on every duration and delay. 2 is twice as
 // slow, 0.5 twice as fast. It scales moves, reveals, glows, docking, `after` delays, `repeat` intervals, `delay`
 // conditions, the crawler fade-out and the simulated press, all by the same factor.
 //
@@ -70,11 +70,12 @@ export function createInterpreter(d, env) {
   const assetKey = (x) => assetsOf(x).join('+');
   // Pace: one factor on every time in the run (2 is twice as slow, 0.5 twice as fast). It multiplies every
   // duration and delay by the same amount, so relationships between them (two legs of equal length that
-  // finish together) are unchanged. `env.pace` overrides the descriptor's `pace`.
+  // finish together) are unchanged. `env.pace` overrides the descriptor's `settings.paceMultiplier`.
+  const S = d.settings ?? {}; // the four run-time switches (core/descriptor.md section 2.1)
   let PACE = 1;
-  for (const v of [d.pace, env.pace]) {
+  for (const v of [S.paceMultiplier, env.pace]) {
     if (v === undefined) continue;
-    if (typeof v === 'number' && Number.isFinite(v) && v > 0) PACE = v; else console.warn(`pace must be a positive number, got ${JSON.stringify(v)}: ignored`);
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) PACE = v; else console.warn(`the pace multiplier must be a positive number, got ${JSON.stringify(v)}: ignored`);
   }
   const scaled = (ms) => Math.round(ms * PACE);
   // Every time value from the descriptor goes through here, so pace is applied once and in one place.
@@ -92,9 +93,9 @@ export function createInterpreter(d, env) {
   let t0 = 0;
   let timers = new Set();
   let satisfied, pending, leaves, lanes;
-  const M = d.modes ?? { default: 'user-driven', toggle: false };
+  const M = S.interactionModes ?? { default: 'user-driven', toggle: false };
   let mode = env.mode ?? M.default ?? 'user-driven';
-  if (mode === 'automated' && !M.simulated) { console.warn('automated mode needs modes.simulated: staying user-driven'); mode = 'user-driven'; }
+  if (mode === 'automated' && !M.simulated) { console.warn('automated mode needs settings.interactionModes.simulated: staying user-driven'); mode = 'user-driven'; }
   let simPending = new Map(), simDone = new Set(), pressAnims = new Set(); // simulated gestures: scheduled, already performed, and in progress
   const emit = (type, data) => onEvent({ t: Math.round(performance.now() - t0), type, ...data });
   // every deferred behavior carries the generation it started in and stops if Reset has happened
@@ -192,7 +193,7 @@ export function createInterpreter(d, env) {
         const key = `${n.name}|${l.name}/${p.name}`;
         if (simDone.has(key) || simPending.has(key)) continue;
         const g = gen;
-        const h = setTimeout(() => { simPending.delete(key); if (g === gen) press(n, l, p, key); }, scaled(M.simulated.delay));
+        const h = setTimeout(() => { simPending.delete(key); if (g === gen) press(n, l, p, key); }, scaled(M.simulated.delayMs));
         simPending.set(key, h);
       }
     }
@@ -202,7 +203,7 @@ export function createInterpreter(d, env) {
   function press(n, l, p, key) {
     const stillArmed = () => mode === 'automated' && armedNow(n.name).some((x) => x.l === l && x.p === p);
     if (!stillArmed()) return;
-    const g = gen, el = doc.querySelector(id(n.element)), { color } = M.simulated.acknowledge, duration = scaled(M.simulated.acknowledge.duration);
+    const g = gen, el = doc.querySelector(id(n.element)), { color } = M.simulated.acknowledge, duration = scaled(M.simulated.acknowledge.durationMs);
     const shadow = `drop-shadow(0 0 3px ${color}) drop-shadow(0 0 8px ${color})`;
     emit('press', { node: n.name });
     const a = el.animate([{ filter: 'none' }, { filter: shadow, offset: 0.4 }, { filter: 'none' }], { duration, easing: 'ease-out' });
@@ -392,14 +393,14 @@ export function createInterpreter(d, env) {
     layoutIcons(list, 11).forEach((el) => group.appendChild(el));
   }
 
-  // ---- watermark (core/descriptor.md section 3.3) -----------------------------
+  // ---- attribution metadata (core/descriptor.md section 3.3) -----------------------------
   // Attribution to the skill and, optionally, the developer. Its box is a zone (no members) named by
-  // `watermark.zone`; the credit lines are injected here. The author name is only ever `watermark.author` —
+  // `settings.attributionMetadata.zone`; the credit lines are injected here. The author name is only ever `settings.attributionMetadata.author` —
   // the agent authoring the descriptor states it explicitly (core/ontology.md section E, explicit intent);
   // the interpreter does no host-environment interpolation to fill it in.
-  let watermarkGroup = null;
-  function startWatermark() {
-    const w = d.watermark;
+  let attributionGroup = null;
+  function startAttribution() {
+    const w = S.attributionMetadata;
     if (!w) return;
     const zone = d.zones.find((z) => z.name === w.zone);
     const rect = doc.querySelector(id(zone.element));
@@ -412,8 +413,8 @@ export function createInterpreter(d, env) {
     // claim, since the process and its constraints are the skill's, not the model's own invention.
     if (w.repo !== false) lines.push({ text: 'Coordinated by Claude, built with diagram-animation skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
     if (author) lines.push({ text: `Authored By: ${author}`, href: w.website });
-    watermarkGroup = doc.createElementNS(SVGNS, 'g');
-    watermarkGroup.setAttribute('class', 'diagram-watermark');
+    attributionGroup = doc.createElementNS(SVGNS, 'g');
+    attributionGroup.setAttribute('class', 'diagram-watermark');
     const lineHeight = 12, top = y + height / 2 - ((lines.length - 1) * lineHeight) / 2;
     lines.forEach((ln, i) => {
       const text = doc.createElementNS(SVGNS, 'text');
@@ -428,38 +429,38 @@ export function createInterpreter(d, env) {
         a.setAttributeNS('http://www.w3.org/1999/xlink', 'href', ln.href);
         a.setAttribute('href', ln.href);
         a.appendChild(text);
-        watermarkGroup.appendChild(a);
-      } else watermarkGroup.appendChild(text);
+        attributionGroup.appendChild(a);
+      } else attributionGroup.appendChild(text);
     });
-    rect.parentNode.insertBefore(watermarkGroup, rect.nextSibling); // paint order: right after its own box
+    rect.parentNode.insertBefore(attributionGroup, rect.nextSibling); // paint order: right after its own box
     // Permanently static (ontology rule 25): position never changes; only opacity ever animates, once.
-    if (typeof w.fade === 'number') {
+    if (typeof w.fadeAfterSeconds === 'number') {
       const g = gen;
-      later(scaled(w.fade * 1000), () => {
-        anime.remove([rect, watermarkGroup]);
-        anime({ targets: [rect, watermarkGroup], opacity: [1, 0], duration: scaled(600), easing: 'easeOutQuad' });
+      later(scaled(w.fadeAfterSeconds * 1000), () => {
+        anime.remove([rect, attributionGroup]);
+        anime({ targets: [rect, attributionGroup], opacity: [1, 0], duration: scaled(600), easing: 'easeOutQuad' });
       });
     }
   }
 
-  // ---- grid (core/descriptor.md section 3.4) ------------------------------------
-  // An authoring aid, not part of the diagram: `grid: { enabled: true, step: 50 }` draws a line every `step`
+  // ---- grid layer (core/descriptor.md section 3.4) ------------------------------------
+  // An authoring aid, not part of the diagram: `settings.gridLayer: { enabled: true, stepUserUnits: 50 }` draws a line every `stepUserUnits`
   // user units across the whole canvas, numbered with the user-space coordinate (so a number read off the
   // drawing is the number to write in the SVG). The origin is the canvas's native one: the numbers are the
   // viewBox's own coordinates, so a viewBox that starts at 0,0 has its 0 at the top-left corner, and one
   // with a negative min-x or min-y shows negative numbers. Column numbers sit just inside the top edge, row
   // numbers just inside the left edge. Drawn once, ignored by the pointer, and above the diagram's boxes but
-  // below every crawler (crawlers are appended later). Turn it off (`enabled: false`, or delete `grid`)
+  // below every crawler (crawlers are appended later). Turn it off (`enabled: false`, or delete `gridLayer`)
   // before exporting; the exporter warns if it is still on.
   function drawGrid() {
-    const g = d.grid;
+    const g = S.gridLayer;
     if (!g || g.enabled !== true) return;
     const svg = doc.querySelector(svgSel);
     if (!svg) return;
     const vb = (svg.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
     const [minX, minY, w, h] = vb.length === 4 && vb.every(Number.isFinite) ? vb : [0, 0, parseFloat(svg.getAttribute('width')) || 0, parseFloat(svg.getAttribute('height')) || 0];
-    if (!(w > 0 && h > 0)) { console.warn('grid is enabled but the svg has no viewBox or width/height: no grid drawn'); return; }
-    const step = g.step ?? 50;
+    if (!(w > 0 && h > 0)) { console.warn('gridLayer is enabled but the svg has no viewBox or width/height: no grid drawn'); return; }
+    const step = g.stepUserUnits ?? 50;
     const group = doc.createElementNS(SVGNS, 'g');
     group.setAttribute('class', 'diagram-grid');
     group.setAttribute('pointer-events', 'none');
@@ -497,7 +498,7 @@ export function createInterpreter(d, env) {
     lanes = Object.fromEntries(d.lanes.map((l) => [l.name, { entered: false, phase: 0, consumed: new Set() }]));
     for (const g of Object.values(storageGroups)) g.remove();
     storage = {}; storageGroups = {};
-    if (watermarkGroup) { watermarkGroup.remove(); watermarkGroup = null; }
+    if (attributionGroup) { attributionGroup.remove(); attributionGroup = null; }
   }
   function start() {
     initial();
@@ -510,7 +511,7 @@ export function createInterpreter(d, env) {
     }
     refreshClickable();
     checkDatums();
-    startWatermark();
+    startAttribution();
   }
   function reset() {
     gen++;
@@ -521,7 +522,7 @@ export function createInterpreter(d, env) {
     const all = [...d.nodes.map((n) => id(n.element)), ...d.channels.flatMap((c) => selWithLabel(c.name)), ...d.volumes.map((v) => id(v.element)), ...d.zones.map((z) => id(z.element))];
     for (const s of all) anime.remove(s);
     // permanently static, but a fade can still leave it at opacity 0: Reset returns it to visible
-    if (d.watermark) { const w = d.zones.find((z) => z.name === d.watermark.zone); if (w) doc.querySelector(id(w.element)).style.opacity = ''; }
+    if (S.attributionMetadata) { const w = d.zones.find((z) => z.name === S.attributionMetadata.zone); if (w) doc.querySelector(id(w.element)).style.opacity = ''; }
     for (const c of d.channels) for (const s of selWithLabel(c.name)) { const el = doc.querySelector(s); if (c.visibility === 'hidden') el.style.opacity = ''; el.classList.remove('diagram-glow'); el.style.stroke = ''; el.style.strokeWidth = ''; }
     for (const n of d.nodes) { const el = doc.querySelector(id(n.element)); el.classList.remove('diagram-glow', 'diagram-clickable'); el.style.stroke = ''; el.style.strokeWidth = ''; if (n.group) anime.set(id(n.element), { opacity: 1 }); }
     doc.querySelector(logSel).innerHTML = '';
@@ -536,7 +537,7 @@ export function createInterpreter(d, env) {
   let toggleBox = null;
   if (M.toggle) {
     const footer = doc.querySelector(`#diagram-${LABEL} .diagram-footer`);
-    if (!footer) console.warn('modes.toggle is set but the diagram has no .diagram-footer: no toggle shown');
+    if (!footer) console.warn('settings.interactionModes.toggle is set but the diagram has no .diagram-footer: no toggle shown');
     else {
       const label = doc.createElement('label');
       label.className = 'diagram-mode-toggle';

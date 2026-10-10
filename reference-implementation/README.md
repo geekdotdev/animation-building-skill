@@ -39,7 +39,7 @@ const run = createInterpreter(descriptor, { anime, createCrawlerElement, logDiag
 run.start();   // Replay calls run.reset()
 ```
 
-It implements the contract of `core/descriptor.md` §9, including the interaction mode (§9.10: `modes.toggle` puts a switch beside Replay, and in automated mode each armed gesture is pressed for the viewer with a visible acknowledgement, then performed like a click): datums that close on their acknowledgement, lane-scoped arrival triggers, phases that arm gestures (consumed once in a user-paced phase, repeatable in an open-ended one), ordered actions with blocking and non-blocking semantics, `repeat`, `dock`, and one generation counter that every timer, hop and glow checks. Reset advances it first.
+It implements the contract of `core/descriptor.md` §9, including the interaction mode (§9.10: `settings.interactionModes.toggle` puts a switch beside Replay, and in automated mode each armed gesture is pressed for the viewer with a visible acknowledgement, then performed like a click): datums that close on their acknowledgement, lane-scoped arrival triggers, phases that arm gestures (consumed once in a user-paced phase, repeatable in an open-ended one), ordered actions with blocking and non-blocking semantics, `repeat`, `dock`, and one generation counter that every timer, hop and glow checks. Reset advances it first.
 
 **Not implemented:** simulation of gestures the descriptor didn't declare `arms` for, overlay precedence (crawlers are appended last, so the newest is on top, which is the ontology's fallback), lane reset triggers, and `sharedPrefix` divergences. It doesn't validate: run `core/validator/` first.
 

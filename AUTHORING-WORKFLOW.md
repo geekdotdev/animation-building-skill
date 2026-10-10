@@ -129,7 +129,7 @@ Open `http://localhost:8765/`. anime.js isn't included, so `--anime` is the path
 
 It starts in the descriptor's default mode, and the switch beside Replay changes it: **user-driven** waits for you to click the highlighted node at each step, and **automated** presses each one for you, with a short blue glow so you can see it happened. Add `?mode=automated` to the URL to start that way.
 
-To see it slower or faster, add `?pace=2` (twice as slow) or `?pace=0.5` to the URL. To make it permanent, set `pace` in the descriptor: one number that scales every duration and delay together, so anything that should finish together still does.
+To see it slower or faster, add `?pace=2` (twice as slow) or `?pace=0.5` to the URL. To make it permanent, set `settings.paceMultiplier` in the descriptor: one number that scales every duration and delay together, so anything that should finish together still does.
 
 What to look at:
 

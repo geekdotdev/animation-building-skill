@@ -115,7 +115,7 @@ t("fillTemplate rejects an unknown slot and a template that drops a required one
 // ---- profile ----
 const good = { target: "x", packaging: "fragment", assets: { anime: "cdn" }, gestures: "live", behavior: {}, presentation: {}, reasons: {} };
 const defined = 'class="diagram" diagram-log diagram-replay diagram-mode-toggle';
-const withModes = { ...fixture, modes: { default: "user-driven", toggle: true, simulated: { delay: 800, acknowledge: { color: "#1e88e5", duration: 400 } } } };
+const withModes = { ...fixture, settings: { interactionModes: { default: "user-driven", toggle: true, simulated: { delayMs: 800, acknowledge: { color: "#1e88e5", durationMs: 400 } } } } };
 const prof = (o) => ({ ...good, ...o });
 const msgs = (p, d = fixture, def = defined) => { const r = checkProfile(p, d, def); return [...r.errors, ...r.escalations].join("\n"); };
 t("checkProfile: a good profile is clean", () => assert.equal(msgs(good), ""));
@@ -151,17 +151,17 @@ t("checkProfile: a target that can't take clicks escalates unless it runs automa
   assert.match(msgs(prof({ gestures: "none", behavior: { mode: "automated", toggle: true } }), withModes), /can't take clicks/);
 });
 t("checkProfile: automated mode needs the descriptor's simulated-gesture acknowledgement", () => {
-  assert.match(msgs(prof({ behavior: { mode: "automated", toggle: false } })), /modes\.simulated/);
+  assert.match(msgs(prof({ behavior: { mode: "automated", toggle: false } })), /interactionModes\.simulated/);
 });
 t("applyBehavior drops the authoring grid without changing the original", () => {
-  const d = { ...withModes, grid: { enabled: true, step: 50 } };
-  assert.equal(applyBehavior(d, {}).grid, undefined);
-  assert.deepEqual(d.grid, { enabled: true, step: 50 });
+  const d = { ...withModes, settings: { ...withModes.settings, gridLayer: { enabled: true, stepUserUnits: 50 } } };
+  assert.equal(applyBehavior(d, {}).settings.gridLayer, undefined);
+  assert.deepEqual(d.settings.gridLayer, { enabled: true, stepUserUnits: 50 });
 });
 t("applyBehavior overrides the descriptor's mode and toggle without changing the original", () => {
   const d = applyBehavior(withModes, { mode: "automated", toggle: false });
-  assert.deepEqual([d.modes.default, d.modes.toggle], ["automated", false]);
-  assert.equal(withModes.modes.default, "user-driven");
+  assert.deepEqual([d.settings.interactionModes.default, d.settings.interactionModes.toggle], ["automated", false]);
+  assert.equal(withModes.settings.interactionModes.default, "user-driven");
 });
 
 // ---- build ----
@@ -215,13 +215,21 @@ t("buildExport: a file that is just the diagram works as well as a whole page", 
   const body = (h) => h.slice(h.indexOf("<style>")); // the header records a hash of the file, which differs
   assert.equal(body(build({ markup: bare }).html), body(build().html));
 });
+t("buildExport: the template's own license comment is not part of the export, and the shipped templates carry one", () => {
+  for (const name of ["fragment", "page"]) assert.match(templates[name], /^<!-- Copyright \(c\) 2026 Charlie Federspiel\n\s+SPDX-License-Identifier: MIT -->\n/, name);
+  for (const name of ["fragment", "page"]) {
+    const html = build({ profile: prof({ packaging: name }) }).html;
+    assert.ok(!/^<!-- Copyright/.test(html), `${name}: the template's license comment is at the top of the export`);
+    assert.ok(!html.includes("Copyright (c) 2026 Charlie Federspiel\n     SPDX"), `${name}: the template's license comment is in the export`);
+  }
+});
 t("buildExport: a profile's pace is set on the embedded descriptor, replaces the descriptor's own, and leaves the original alone", () => {
   const embedded = (html) => JSON.parse(/const descriptor = (\{.*\});/.exec(html)[1]);
-  assert.equal(embedded(build({ profile: prof({ behavior: { pace: 2 } }) }).html).pace, 2);
-  assert.equal(embedded(build({ descriptor: { ...withModes, pace: 3 }, profile: prof({ behavior: { pace: 2 } }) }).html).pace, 2);
-  assert.equal(embedded(build({ descriptor: { ...withModes, pace: 3 } }).html).pace, 3); // no profile pace: the descriptor's stays
-  assert.equal(embedded(build().html).pace, undefined);
-  assert.equal(withModes.pace, undefined);
+  assert.equal(embedded(build({ profile: prof({ behavior: { pace: 2 } }) }).html).settings.paceMultiplier, 2);
+  assert.equal(embedded(build({ descriptor: { ...withModes, settings: { ...withModes.settings, paceMultiplier: 3 } }, profile: prof({ behavior: { pace: 2 } }) }).html).settings.paceMultiplier, 2);
+  assert.equal(embedded(build({ descriptor: { ...withModes, settings: { ...withModes.settings, paceMultiplier: 3 } } }).html).settings.paceMultiplier, 3); // no profile pace: the descriptor's stays
+  assert.equal(embedded(build().html).settings?.paceMultiplier, undefined);
+  assert.equal(withModes.settings.paceMultiplier, undefined);
 });
 t("buildExport: replay:false hides Replay, and a custom template is honored", () => {
   const { html } = build({ profile: prof({ behavior: { replay: false } }) });

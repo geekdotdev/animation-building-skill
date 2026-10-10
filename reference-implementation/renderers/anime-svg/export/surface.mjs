@@ -32,5 +32,6 @@ export const SURFACE = {
 };
 
 // Behavior parameters (a JSON config, not CSS). `replay: false` hides the Replay button. `pace` is a factor on every
-// duration and delay (2 is twice as slow, 0.5 twice as fast), set on the exported copy of the descriptor.
+// duration and delay (2 is twice as slow, 0.5 twice as fast), set on the exported copy of the descriptor as
+// `settings.paceMultiplier`.
 export const BEHAVIOR_KEYS = ["mode", "toggle", "replay", "pace"];
