@@ -442,6 +442,52 @@ export function createInterpreter(d, env) {
     }
   }
 
+  // ---- grid (core/descriptor.md section 3.4) ------------------------------------
+  // An authoring aid, not part of the diagram: `grid: { enabled: true, step: 50 }` draws a line every `step`
+  // user units across the whole canvas, numbered with the user-space coordinate (so a number read off the
+  // drawing is the number to write in the SVG). The origin is the canvas's native one: the numbers are the
+  // viewBox's own coordinates, so a viewBox that starts at 0,0 has its 0 at the top-left corner, and one
+  // with a negative min-x or min-y shows negative numbers. Column numbers sit just inside the top edge, row
+  // numbers just inside the left edge. Drawn once, ignored by the pointer, and above the diagram's boxes but
+  // below every crawler (crawlers are appended later). Turn it off (`enabled: false`, or delete `grid`)
+  // before exporting; the exporter warns if it is still on.
+  function drawGrid() {
+    const g = d.grid;
+    if (!g || g.enabled !== true) return;
+    const svg = doc.querySelector(svgSel);
+    if (!svg) return;
+    const vb = (svg.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
+    const [minX, minY, w, h] = vb.length === 4 && vb.every(Number.isFinite) ? vb : [0, 0, parseFloat(svg.getAttribute('width')) || 0, parseFloat(svg.getAttribute('height')) || 0];
+    if (!(w > 0 && h > 0)) { console.warn('grid is enabled but the svg has no viewBox or width/height: no grid drawn'); return; }
+    const step = g.step ?? 50;
+    const group = doc.createElementNS(SVGNS, 'g');
+    group.setAttribute('class', 'diagram-grid');
+    group.setAttribute('pointer-events', 'none');
+    const line = (x1, y1, x2, y2, major) => {
+      const l = doc.createElementNS(SVGNS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      l.setAttribute('stroke', '#d33'); l.setAttribute('stroke-width', major ? '0.6' : '0.4'); l.setAttribute('stroke-opacity', major ? '0.5' : '0.3');
+      group.appendChild(l);
+    };
+    const label = (x, y, text) => {
+      const t = doc.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('font-size', '8'); t.setAttribute('font-family', 'sans-serif'); t.setAttribute('fill', '#c00');
+      t.textContent = String(text);
+      group.appendChild(t);
+    };
+    const first = (min) => Math.ceil(min / step) * step;
+    for (let x = first(minX); x <= minX + w; x += step) {
+      line(x, minY, x, minY + h, x % (step * 2) === 0);
+      label(x + 2, minY + 8, x);
+    }
+    for (let y = first(minY); y <= minY + h; y += step) {
+      line(minX, y, minX + w, y, y % (step * 2) === 0);
+      if (y !== minY) label(minX + 2, y - 2, y);
+    }
+    svg.appendChild(group);
+  }
+
   // ---- start and reset -------------------------------------------------------
   function initial() {
     gen++; // invalidate everything pending BEFORE touching state (core/descriptor.md 9.7)
@@ -485,6 +531,7 @@ export function createInterpreter(d, env) {
   // ---- wiring (once) ---------------------------------------------------------
   for (const n of d.nodes) if (n.gesture) doc.querySelector(id(n.element)).addEventListener('click', () => onClick(n.name));
   doc.getElementById(`diagram-${LABEL}-replay`)?.addEventListener('click', reset);
+  drawGrid();
   // the mode toggle, beside Replay, only when the descriptor allows the viewer to switch
   let toggleBox = null;
   if (M.toggle) {

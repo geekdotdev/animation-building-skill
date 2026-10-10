@@ -10,7 +10,7 @@ The ontology defines the terms (**asset**, **node**, **channel**, **zone**, **ef
 
 ## Assets (things that travel a channel)
 
-Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the example diagrams whose script references the type today: **D** Static Demo, **2** Pre-Signed Zero Permission, **3** Role-Mapper, **4** Pure SPA Login, **5** BFF-Initiated SPA Login.
+Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the example diagrams whose script references the type today: **D** Static Demo, **2** Pre-Signed Zero Permission, **3** Role-Mapper, **4** Pure SPA Login, **5** BFF-Initiated SPA Login, **6** SPA Login with Keycloak DPoP.
 
 | Asset | Visual | Meaning (what it depicts) | Used in |
 |---|---|---|---|
@@ -23,6 +23,7 @@ Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the e
 | `accessToken` | hollow purple circle | A single OIDC access token presented on its own | 2 4 5 |
 | `natsUserJwt` | filled gold circle `#d4a017` | A minted, per-connection NATS user JWT | 3 |
 | `zeroPermissionJwt` | hollow gold circle | A NATS user JWT carrying no permissions of its own | 2 4 |
+| `keySignature` | filled dark green circle `#1c7a30` | A signature made with the browser's own key: a DPoP proof (a JWT signed for one request) or the signed nonce at NATS connect. It vouches for what it travels with, so it is drawn as part of a composite crawler (with `tokenExchange`, with `accessToken`, or with `zeroPermissionJwt` and `accessToken`), never alone | 6 |
 | `zpJwtWithAccessToken` | gold linked keys `#d4a017`: two keys with interlocked bows, no ring | A zero-permission NATS user JWT with the OIDC access token inside it as a claim, encrypted so only auth-callout can read it. One signed artifact from mint time on | 5 |
 | `authenticatedRequest` | filled teal square `#00838f` | A request carrying the caller's verified session or access token (spa-server relaying it to a back-end service) | 5 |
 | `publicKey` | filled teal circle `#00838f` | A browser-generated public key submitted for signing | 3 4 5 |

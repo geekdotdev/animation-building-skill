@@ -183,6 +183,15 @@ t("watermark: fade must be false or a positive number, not negative", (d) => { w
 t("watermark: fade must be false or a positive number, not a string", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", fade: "8" }; }, ["error:shape"]);
 t("watermark: must be an object", (d) => { withCreditsZone(d); d.watermark = "credits"; }, ["error:shape", "warning:zone"]);
 t("watermark: an unknown key is a warning", (d) => { withCreditsZone(d); d.watermark = { zone: "credits", color: "red" }; }, ["warning:unknown-key"]);
+// ---- grid (core/descriptor.md section 3.4): an authoring aid ----
+t("grid: switched off is accepted", (d) => { d.grid = { enabled: false, step: 50 }; }, []);
+t("grid: enabled warns, since it is an authoring aid", (d) => { d.grid = { enabled: true }; }, ["warning:grid"]);
+t("grid: enabled is required", (d) => { d.grid = { step: 50 }; }, ["error:shape"]);
+t("grid: enabled must be a boolean", (d) => { d.grid = { enabled: "yes" }; }, ["error:shape"]);
+t("grid: step must be a positive number", (d) => { d.grid = { enabled: false, step: 0 }; }, ["error:shape"]);
+t("grid: a very small step is a warning", (d) => { d.grid = { enabled: false, step: 2 }; }, ["warning:shape"]);
+t("grid: must be an object", (d) => { d.grid = true; }, ["error:shape"]);
+t("grid: an unknown key is a warning", (d) => { d.grid = { enabled: false, color: "red" }; }, ["warning:unknown-key"]);
 t("a watermark zone's own no-members warning is suppressed, but an unrelated empty zone still warns", (d) => {
   withCreditsZone(d); d.watermark = { zone: "credits" };
   d.zones.push({ name: "other-empty", element: "dg-other-zone", label: "x", members: { nodes: [], volumes: [] }, padding: { left: 0, top: 0, right: 0, bottom: 0 } });

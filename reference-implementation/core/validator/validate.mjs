@@ -34,7 +34,7 @@ import { pathToFileURL } from "node:url";
 const FIDELITY = ["faithful", "adapted", "metaphor"];
 const TIMEBOX = ["timed", "event-bounded", "user-paced", "open-ended"];
 const DIRECTIONS = ["forward", "return"];
-const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "eventLog", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark"];
+const TOP_KEYS = ["version", "draft", "diagramLabel", "title", "nodes", "channels", "zones", "volumes", "eventLog", "durations", "datums", "lanes", "sequences", "overlays", "validatorExceptions", "modes", "markup", "pace", "strict", "watermark", "grid"];
 const ACTIONS = ["move", "reveal", "hide", /* proposed F6 */ "acknowledge", "narrate", "hint", "repeat", "divergence", "dock" /* proposed F10 */, "store" /* strict mode: core/descriptor.md section 3.2 */];
 const ACTION_MODIFIERS = ["after", "duration", "name"]; // `duration` and `name` are used by `dock` and `hide` (proposed)
 
@@ -506,6 +506,19 @@ export function validate(d, opts = {}) {
         else if (!/^https?:\/\//.test(w.website)) warn("shape", ww, `website "${w.website}" doesn't start with http:// or https://: is that intended?`);
       }
       if (w.fade !== undefined && w.fade !== false && !(typeof w.fade === "number" && w.fade > 0)) err("shape", ww, "fade must be false (permanent) or a positive number of seconds");
+    }
+  }
+
+  // ---- 9f. grid (optional): an authoring aid, a numbered coordinate grid over the canvas ---------
+  if (d.grid !== undefined) {
+    const g = d.grid, gw = "grid";
+    if (!isObj(g)) err("shape", gw, "grid must be an object: { enabled, step? }");
+    else {
+      for (const k of Object.keys(g)) if (!["enabled", "step"].includes(k)) warn("unknown-key", gw, `unknown key grid.${k}`);
+      if (typeof g.enabled !== "boolean") err("shape", gw, "grid.enabled is required and must be true or false");
+      if (g.step !== undefined && !(typeof g.step === "number" && Number.isFinite(g.step) && g.step > 0)) err("shape", gw, "grid.step must be a positive number of user units");
+      else if (g.step !== undefined && g.step < 5) warn("shape", gw, `grid.step ${g.step} draws a very dense grid: is that intended?`);
+      if (g.enabled === true) warn("grid", gw, "the grid is enabled: it is an authoring aid, so set grid.enabled to false (or remove grid) before publishing or exporting");
     }
   }
 

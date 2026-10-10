@@ -56,6 +56,7 @@ export default {
 | `modes` | `{ default, toggle, simulated }`. `default` is `'user-driven'` or `'automated'`. `toggle: true` lets the viewer switch (the renderer puts a switch beside Replay), and `false` fixes the mode at `default`. `simulated: { delay, acknowledge: { color, duration } }` is required when the mode can be automated: `delay` is the ms between a gesture being armed and its simulated press, and `acknowledge` is the short glow that shows the press. See §9.10. Omitted means user-driven only, with no toggle. | interaction mode, simulated gesture |
 | `strict` | A boolean, default `false`: every move's and divergence's assets must be in its origin node's local storage (§3.2). Local storage is tracked either way; this only makes an unstored send an error. | local storage |
 | `watermark` | `{ zone, repo?, author?, website?, fade? }`. Attribution to the skill and the developer (§3.3). Optional; omitted means no watermark at all. | watermark |
+| `grid` | `{ enabled, step? }`. A numbered coordinate grid drawn over the canvas, for authoring (§3.4). Optional; omitted means no grid. `enabled` is the static on/off switch, so the grid can stay in the descriptor while switched off. | grid |
 | `overlays` | `{ channel, lanes, precedence, conflicts? }`. Required when different assets from two lanes (or phases) can coincide on a channel, which is an **escalation**. `precedence` is `[lane names]`, first wins, or `'unresolved'` while the user hasn't answered (a descriptor with any is a draft). `conflicts` lists the asset pairs that differ, so the question can be specific. Identical assets need no entry. The newest is on top if the user gives no precedence. | overlay precedence |
 | `validatorExceptions` | `[{ check: 'overlay', channel, reason }]`. Optional. Records that the user has looked at a specific overlay conflict and verified it can't actually happen, so the validator stops escalating it — the conflict is still real and still found, it just no longer blocks the agent. `reason` is a short string; `'temporallySeparated'` is the one defined value so far. It also drops that channel from the "an overlay is unresolved, so mark `draft: true`" requirement, since an exempted conflict isn't an open question anymore. A stale entry (the conflict it names no longer exists) is flagged. | validator exception |
 
@@ -170,6 +171,24 @@ watermark: { zone: 'credits', repo: true, author: 'Jane Doe', website: 'https://
 - **Permanently static.** Its position never changes, whatever `fade` is set to. The only thing that can animate is opacity, once, on the fade.
 - **Reset** returns it to visible and restarts the fade timer, exactly like anything else Reset returns to its start.
 
+## 3.4 Grid: reading coordinates off the drawing
+
+An authoring aid for placing and nudging things in the SVG. When a box moves 20 units it is hard to see that anything changed; with the grid on, the numbers say where everything is.
+
+```js
+grid: { enabled: true, step: 50 },
+```
+
+| Key | Meaning |
+|---|---|
+| `enabled` | Required: `true` draws the grid, `false` does not. This is the whole toggle: a static setting in the descriptor, not a control the viewer sees. Leave `grid` in place with `enabled: false`, or delete it, once the layout is settled. |
+| `step` | Optional, default 50: the distance between lines, in the SVG's user units. Every second line is slightly stronger. |
+
+- **The origin is the canvas's native one.** The numbers are the SVG's own user-space coordinates, taken from its `viewBox`: a viewBox starting at `0 0` has 0 at the top-left corner, and one with a negative min-x or min-y shows negative numbers there. A number read off the grid is the number to write in the SVG.
+- **Numbers sit inside the canvas edge**: column numbers along the top, row numbers along the left, each beside its line.
+- Drawn once when the interpreter is created, above the diagram's own shapes and below every crawler; it ignores the pointer, and Reset does not touch it.
+- The validator **warns** while `enabled` is `true`, so the grid is not published or exported by accident.
+
 ## 4. Datums
 
 ```js
@@ -260,6 +279,7 @@ These are the checks of the validator (`reference-implementation/core/validator/
 | A move, divergence or arrival has exactly one of `asset` or `assets` (at least two names); `box` only with `assets` | composite crawler |
 | With `strict: true`, every move's and divergence's assets are in its origin's local storage (built from arrivals and `store` actions) | local storage |
 | A watermark's `zone` resolves, and it has no members | watermark |
+| `grid.enabled` is a boolean and `step`, if given, is a positive number; a **warning** while the grid is enabled (it is an authoring aid) | grid |
 | Names and durations resolve, and every asset exists in `ICONOGRAPHY` (`diagram-shared.js`; `domains/nats-oidc/iconography.md` is an example seed of it) | integrity |
 | Every sequence has a fidelity; `faithful` and `adapted` have a `source`; `adapted` has an `adaptation`; `metaphor` has `explains` | ontology, fidelity |
 | Every lane has one `subject`; phases chain by exit datum | rules 1 and 5 |

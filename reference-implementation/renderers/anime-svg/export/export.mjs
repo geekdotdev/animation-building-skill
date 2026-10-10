@@ -159,6 +159,7 @@ export function fillTemplate(template, slots) {
 export function applyBehavior(descriptor, behavior = {}) {
   const d = structuredClone(descriptor);
   if (behavior.pace !== undefined) d.pace = behavior.pace; // the profile's pace replaces the descriptor's
+  delete d.grid; // the grid is an authoring aid (core/descriptor.md section 3.4): an export never carries it
   if (behavior.mode !== undefined || behavior.toggle !== undefined) {
     d.modes = { ...(d.modes ?? {}), default: behavior.mode ?? d.modes?.default ?? "user-driven", toggle: behavior.toggle ?? d.modes?.toggle ?? false };
   }

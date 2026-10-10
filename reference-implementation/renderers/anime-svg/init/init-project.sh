@@ -7,6 +7,8 @@
 # AUTHORING-WORKFLOW.md, "Set up per project".
 #
 # Usage: init-project.sh <project-dir> [options]
+#   <project-dir>       a new folder, an empty one, or one holding only a .git folder (a fresh clone of an empty
+#                       remote: its remote and settings are kept). Anything else in it is refused.
 #   --diagram <label>   the first diagram's folder and id suffix: lowercase letters, digits, hyphens.
 #                       Default: taken from the project folder's name.
 #   --css <file>        your application's stylesheet, instead of the reference one
@@ -68,15 +70,21 @@ REF_IMPL="$(cd "$ANIME_SVG/../.." && pwd -P)"
 SKILL_REPO="$(cd "$REF_IMPL/.." && pwd -P)"
 [ -f "$ANIME_SVG/skeleton/diagram.html" ] || die "can't find the skeleton under $ANIME_SVG"
 
+# The folder may be new, empty, or hold only a .git folder (a fresh clone of an empty remote): that repo, its remote
+# and its settings are kept. Anything else in it is refused.
+HAD_GIT=0
 if [ -e "$PROJECT" ]; then
-  [ -d "$PROJECT" ] && [ -z "$(ls -A "$PROJECT")" ] || die "$PROJECT already exists and isn't an empty folder"
+  [ -d "$PROJECT" ] || die "$PROJECT already exists and isn't a folder"
+  [ -d "$PROJECT/.git" ] && HAD_GIT=1
+  [ -z "$(ls -A "$PROJECT" | grep -v '^\.git$' || true)" ] || die "$PROJECT already exists and isn't an empty folder (a folder holding only a .git folder is fine)"
 fi
 mkdir -p "$PROJECT"
 PROJECT="$(cd "$PROJECT" && pwd -P)"
 cd "$PROJECT"
 
+# git init is safe on an existing repo: it changes neither the remote nor the config.
 git init -q
-echo "created a git repo in $PROJECT"
+if [ "$HAD_GIT" = 1 ]; then echo "using the existing git repo in $PROJECT"; else echo "created a git repo in $PROJECT"; fi
 
 # ---- package.json, .gitignore --------------------------------------------------------------------------------
 PKG_NAME="$(basename "$PROJECT" | tr 'A-Z' 'a-z' | sed -e 's/[^a-z0-9._-]\{1,\}/-/g' -e 's/^[-._]*//')"
@@ -185,8 +193,22 @@ echo
 echo "checking the new diagram against $(basename "$EFF_CSS") and $(basename "$EFF_HELPERS"):"
 v_out="$(node "$REF_IMPL/core/validator/validate.mjs" "$LABEL/diagram.animation.js" --assets "$EFF_HELPERS" 2>&1)" && v_ok=1 || v_ok=0
 m_out="$(node "$ANIME_SVG/markup/check.mjs" "$LABEL/diagram.animation.js" --css "$EFF_CSS" --helpers "$EFF_HELPERS" 2>&1)" && m_ok=1 || m_ok=0
+# With your own helpers, the skeleton's placeholder sequence uses assets (request, response, credential) that only the
+# reference iconography defines, so the validator reports them as unknown. That is not a wrong path: they go away when the
+# real sequence replaces the placeholder, using your helpers' assets. Errors of only that kind are not treated as failure.
+v_errors="$(printf '%s\n' "$v_out" | sed -n -E 's/^([0-9]+) errors?,.*/\1/p' | tail -1)"
+v_unknown="$(printf '%s\n' "$v_out" | grep -c '\[unknown-asset\]' || true)"
+skeleton_assets_unknown=0
+if [ "$v_ok" = 0 ] && [ -n "$HELPERS$APP" ] && [ -n "$v_errors" ] && [ "$v_errors" = "$v_unknown" ]; then
+  v_ok=1
+  skeleton_assets_unknown=1
+fi
 echo "  descriptor: $(printf '%s\n' "$v_out" | summary)"
 echo "  drawing:    $(printf '%s\n' "$m_out" | summary)"
+if [ "$skeleton_assets_unknown" = 1 ]; then
+  echo "  (the descriptor's errors are the skeleton's placeholder assets, which your helpers don't define: expected, and gone once"
+  echo "   the placeholder sequence is replaced with one that uses the assets in $(basename "$EFF_HELPERS"))"
+fi
 if [ "$v_ok" = 0 ] || [ "$m_ok" = 0 ]; then
   warn "a check reported errors: look at the paths you gave"
   printf '%s\n%s\n' "$v_out" "$m_out" >&2

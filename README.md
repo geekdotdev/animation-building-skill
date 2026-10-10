@@ -28,6 +28,8 @@ The whole path, in order. [`AUTHORING-WORKFLOW.md`](AUTHORING-WORKFLOW.md) has t
 - **Generate an animation from a descriptor.** Give it a descriptor (what happens, in order) and the diagram file it names, and it builds a page that runs the animation in a browser. The viewer clicks through each step, or switches to automated and it presses each one with a visible glow, and one `pace` setting slows or speeds the whole thing. The build refuses a drawing that breaks the markup contract, and a separate validator checks the descriptor. The agent can also draft the diagram file, the drawing itself, from a skeleton.
 - **Export for a specific delivery channel.** A target profile says where the animation is going (a blog card or a standalone page so far), and the exporter writes one self-contained file for it. It changes how the animation looks there (size, text, colour, pace) and never what it says, and each change is a named setting with a reason.
 
+- **See where things are.** Set `grid: { enabled: true, step: 50 }` in the descriptor and the page draws a numbered grid over the canvas, in the drawing's own coordinates with the canvas's native origin (the `viewBox`'s top-left), the numbers just inside the edge. It is a setting in the descriptor, not a control the viewer sees, so a 20-unit nudge becomes something you can read off the page. The validator warns while it is on and exports leave it out, so switch it off (`enabled: false`) once the layout is settled.
+
 [`AUTHORING-WORKFLOW.md`](AUTHORING-WORKFLOW.md) shows the steps and commands for all three.
 
 ## Example prompt
@@ -41,6 +43,8 @@ The whole path, in order. [`AUTHORING-WORKFLOW.md`](AUTHORING-WORKFLOW.md) has t
 ```bash
 lsof -ti :8765 | xargs kill
 ```
+
+**You moved something and can't see the difference.** Turn on the grid (`grid: { enabled: true }` in the descriptor, `core/descriptor.md` §3.4) and read the coordinates off the page. If the numbers haven't changed, the page is serving an old copy: sync it and hard-refresh.
 
 **The page looks stale after rebuilding the site.** Hard-refresh the browser (Cmd-Shift-R). A plain reload can serve the old script and stylesheet from its cache.
 

@@ -153,6 +153,11 @@ t("checkProfile: a target that can't take clicks escalates unless it runs automa
 t("checkProfile: automated mode needs the descriptor's simulated-gesture acknowledgement", () => {
   assert.match(msgs(prof({ behavior: { mode: "automated", toggle: false } })), /modes\.simulated/);
 });
+t("applyBehavior drops the authoring grid without changing the original", () => {
+  const d = { ...withModes, grid: { enabled: true, step: 50 } };
+  assert.equal(applyBehavior(d, {}).grid, undefined);
+  assert.deepEqual(d.grid, { enabled: true, step: 50 });
+});
 t("applyBehavior overrides the descriptor's mode and toggle without changing the original", () => {
   const d = applyBehavior(withModes, { mode: "automated", toggle: false });
   assert.deepEqual([d.modes.default, d.modes.toggle], ["automated", false]);

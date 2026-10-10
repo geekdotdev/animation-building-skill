@@ -49,7 +49,7 @@ Optionally, name the first diagram (the default is the folder's name) and point 
 
 `init-project.sh` at the top of the skill is only an entry point, so the command you run first has a short path. It forwards to `reference-implementation/renderers/anime-svg/init/init-project.sh`, which holds the logic and the tests. That one lives under the renderer because it is specific to it: it copies the renderer's skeleton, installs anime.js, and writes an `export.sh` for the renderer's exporter. A second renderer would get its own init script, and the entry point is where a choice between them would go.
 
-It refuses a folder that already has files in it. What it creates:
+The folder can be new, empty, or hold only a `.git` folder: clone the new, empty remote first and the repo, its remote and its settings are kept. It refuses a folder with anything else in it. What it creates:
 
 | In the new folder | What it is |
 |---|---|
@@ -60,7 +60,7 @@ It refuses a folder that already has files in it. What it creates:
 | `<label>/diagram.html`, `diagram.animation.js` | The skeleton, with the label already in every id and in `diagramLabel`. Step 3 below is done for the first diagram. |
 | `export.sh` | A script that runs the export (step 7) with the right paths and arguments already filled in. |
 
-Then it runs the validator and the markup check on the skeleton as a smoke test. The `REPLACE:` warnings it prints are the placeholders you're about to fill in.
+Then it runs the validator and the markup check on the skeleton as a smoke test. The `REPLACE:` warnings it prints are the placeholders you're about to fill in. If you gave your own helpers (or `--app`), it also reports errors for the skeleton's placeholder assets (`request`, `response`, `credential`), which only the reference iconography defines. The script says so and doesn't treat it as a wrong path: they go away when the real sequence replaces the placeholder, using your helpers' assets.
 
 `--css` and `--helpers` are the application's own and replace the reference ones in every command below; give them together, because the helpers hold the iconography and the validator checks the descriptor's assets against it. `--anime` is a path to an existing `anime.es.js` if you have one. `--app <repo>` supplies all three at once, but only for the example project's layout. The paths are recorded in `export.sh`, so you don't repeat them there. Run the script with `-h` for the full list.
 

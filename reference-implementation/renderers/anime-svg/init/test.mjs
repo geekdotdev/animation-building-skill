@@ -80,6 +80,32 @@ t("refuses a folder that already has files", () => {
   assert.match(r.stderr, /already exists and isn't an empty folder/);
 });
 
+t("accepts a folder holding only a .git folder, keeping its remote, and says so", () => {
+  const dir = path.join(tmp, "cloned");
+  fs.mkdirSync(dir);
+  assert.equal(run("git", ["init", "-q"], dir).status, 0);
+  assert.equal(run("git", ["remote", "add", "origin", "git@example.com:org/cloned.git"], dir).status, 0);
+  const r = init([dir, "--diagram", "cloned-flow", "--no-install", "--anime", ANIME]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /using the existing git repo/);
+  assert.equal(run("git", ["remote", "get-url", "origin"], dir).stdout.trim(), "git@example.com:org/cloned.git");
+  assert.ok(fs.existsSync(path.join(dir, "cloned-flow/diagram.html")) && fs.existsSync(path.join(dir, "export.sh")));
+});
+
+t("refuses a folder with a .git folder and anything else, and refuses a plain file", () => {
+  const dir = path.join(tmp, "git-plus-file");
+  fs.mkdirSync(dir);
+  assert.equal(run("git", ["init", "-q"], dir).status, 0);
+  fs.writeFileSync(path.join(dir, "README.md"), "x\n");
+  const r = init([dir, "--no-install", "--anime", ANIME]);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /isn't an empty folder/);
+  assert.ok(!fs.existsSync(path.join(dir, "package.json")), "nothing should be written into a refused folder");
+  const file = path.join(tmp, "a-file");
+  fs.writeFileSync(file, "x\n");
+  assert.notEqual(init([file, "--no-install", "--anime", ANIME]).status, 0);
+});
+
 t("rejects a bad diagram label", () => {
   const r = init([path.join(tmp, "bad-label"), "--diagram", "Bad_Label", "--no-install", "--anime", ANIME]);
   assert.notEqual(r.status, 0);
@@ -113,6 +139,28 @@ t("recorded paths follow --css and --helpers into export.sh", () => {
   assert.ok(!r.stderr.includes("without"), "no warning when both are given");
   const e = run("bash", ["export.sh"], path.join(tmp, "both"));
   assert.equal(e.status, 0, e.stdout + e.stderr);
+});
+
+t("with your own helpers, the skeleton's placeholder assets are explained, not reported as a wrong path", () => {
+  const css = path.join(tmp, "host3.css"), helpers = path.join(tmp, "host3-helpers.js");
+  fs.copyFileSync(path.join(HERE, "../reference/diagram.css"), css);
+  // the reference helpers with the placeholder assets renamed, as an application's own iconography would differ
+  const renamed = fs.readFileSync(path.join(HERE, "../reference/helpers.js"), "utf8")
+    .replace(/\brequest:/, "ask:").replace(/\bresponse:/, "reply:").replace(/\bcredential:/, "badge:");
+  fs.writeFileSync(helpers, renamed);
+  const r = init([path.join(tmp, "own-helpers"), "--css", css, "--helpers", helpers, "--no-install", "--anime", ANIME]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /placeholder assets, which your helpers don't define/);
+  assert.doesNotMatch(r.stderr, /a check reported errors/);
+});
+
+t("a genuine problem in the checks is still reported", () => {
+  const css = path.join(tmp, "host4.css"), helpers = path.join(tmp, "host4-helpers.js");
+  fs.copyFileSync(path.join(HERE, "../reference/diagram.css"), css);
+  fs.writeFileSync(helpers, "export const nothing = 1;\n"); // not a helpers file the markup check can use
+  const r = init([path.join(tmp, "bad-helpers"), "--css", css, "--helpers", helpers, "--no-install", "--anime", ANIME]);
+  assert.equal(r.status, 0, "the script itself still completes");
+  assert.match(r.stderr, /a check reported errors/);
 });
 
 t("reached through a symlink, it records the skill's real folder", () => {

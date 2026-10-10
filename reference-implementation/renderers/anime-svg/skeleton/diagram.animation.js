@@ -48,6 +48,10 @@ export default {
   // Visible for 8s, then fades.
   watermark: { zone: 'credits', repo: true, fade: 8 },
 
+  // Authoring aid (core/descriptor.md §3.4): a numbered grid over the canvas, in the SVG's own coordinates.
+  // Set enabled: true while placing things; the validator warns until it is false again.
+  grid: { enabled: false, step: 50 },
+
   datums: [
     // Satisfied when the volume has docked. Its closing acknowledgement is the server's glow, and its triggers
     // (the session lane's entry) fire when the glow completes.
