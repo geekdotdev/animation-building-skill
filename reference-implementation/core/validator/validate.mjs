@@ -500,6 +500,21 @@ export function validate(d, opts = {}) {
     if (s.position === "adjacent" && (!isObj(s.offset) || typeof s.offset.x !== "number" || typeof s.offset.y !== "number")) err("shape", w, "adjacent needs an offset: { x, y }");
   }
 
+  // `icons` (optional, per node or volume): static icons stand along the inside top edge of a node's box (its
+  // label moves down to make room), or at the left end of a volume's box (core/descriptor.md section 3.5).
+  // Each names an asset in the iconography.
+  for (const [kind, n] of [...d.nodes.map((x) => ["node", x]), ...d.volumes.map((x) => ["volume", x])]) {
+    if (n.icons === undefined) continue;
+    const w = `${kind} ${n.name} icons`;
+    if (!Array.isArray(n.icons) || !n.icons.length) { err("shape", w, "icons must be a non-empty array of asset names"); continue; }
+    n.icons.forEach((a) => {
+      if (typeof a !== "string" || !a) err("shape", w, "each icon is an asset name (a non-empty string)");
+      else if (assets && !assets.has(a)) err("unknown-asset", w, `icon ${a} is not in the iconography`);
+    });
+    if (new Set(n.icons).size !== n.icons.length) warn("shape", w, "the same icon appears twice in one box: is that intended?");
+    if (n.icons.length > 4) warn("shape", w, `${n.icons.length} icons in one box: they may not fit across it`);
+  }
+
   // ---- 9e. settings.attributionMetadata (optional): attribution to the skill and the developer ---------------------
   // Its position and size are a zone (with no members), reused rather than a new geometry-holding field —
   // geometry stays in the SVG either way. Content and timing are the attribution's own.

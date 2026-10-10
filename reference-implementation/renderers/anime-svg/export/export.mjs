@@ -245,7 +245,7 @@ export function buildExport(input, { allowOpen = false, skipValidate = false } =
       else if (f.level === "escalation" && !allowOpen) escalations.push(`escalation [${f.code}] ${f.where}: ${f.message}`);
     }
     // the markup contract (renderers/anime-svg/markup-contract.md): the diagram file, the stylesheet and the helpers
-    const contract = [...checkMarkup(descriptor, markup), ...checkStylesheet(sharedCss, descriptor), ...checkHelpers(sharedJs)];
+    const contract = [...checkMarkup(descriptor, markup), ...checkStylesheet(sharedCss, descriptor), ...checkHelpers(sharedJs, descriptor)];
     for (const f of contract) {
       if (f.level === "error") errors.push(`markup [${f.code}] ${f.where}: ${f.message}`);
       else findings.push(f);

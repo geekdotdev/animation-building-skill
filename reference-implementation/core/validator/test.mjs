@@ -183,6 +183,15 @@ t("attributionMetadata: fadeAfterSeconds must be false or a positive number, not
 t("attributionMetadata: fadeAfterSeconds must be false or a positive number, not a string", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", fadeAfterSeconds: "8" }; }, ["error:shape"]);
 t("attributionMetadata: must be an object", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = "credits"; }, ["error:shape", "warning:zone"]);
 t("attributionMetadata: an unknown key is a warning", (d) => { withCreditsZone(d); (d.settings ??= {}).attributionMetadata = { zone: "credits", color: "red" }; }, ["warning:unknown-key"]);
+// ---- node icons (core/descriptor.md section 3.5): static icons along the inside top edge of a box ----
+t("icons: a node with icons is accepted", (d) => { d.nodes[0].icons = ["nothing"]; }, Array(6).fill("error:unknown-asset"), { assets: ["nothing"] });
+t("icons: an icon missing from the iconography is an error", (d) => { d.nodes[0].icons = ["bogus"]; }, Array(7).fill("error:unknown-asset"), { assets: ["nothing"] });
+t("icons: a volume can carry icons too, and an unknown one is an error", (d) => { d.volumes.push({ name: "v", element: "dg-vol", label: "v", consumer: "server", offset: { x: 1, y: 1 }, icons: ["bogus"] }); }, Array(7).fill("error:unknown-asset"), { assets: ["nothing"] });
+t("icons: must be a non-empty array", (d) => { d.nodes[0].icons = []; }, ["error:shape"]);
+t("icons: must be an array", (d) => { d.nodes[0].icons = "nothing"; }, ["error:shape"]);
+t("icons: each is a non-empty string", (d) => { d.nodes[0].icons = [1]; }, ["error:shape"]);
+t("icons: the same icon twice is a warning", (d) => { d.nodes[0].icons = ["a", "a"]; }, ["warning:shape"]);
+t("icons: five in one box is a warning", (d) => { d.nodes[0].icons = ["a", "b", "c", "d", "e"]; }, ["warning:shape"]);
 // ---- the settings block (core/descriptor.md section 2.1): the old top-level keys moved ----
 t("moved: pace is now settings.paceMultiplier", (d) => { d.pace = 2; }, ["error:moved"]);
 t("moved: modes is now settings.interactionModes", (d) => { d.modes = { default: "user-driven", toggle: false }; }, ["error:moved"]);

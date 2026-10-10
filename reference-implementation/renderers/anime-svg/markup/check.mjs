@@ -17,6 +17,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { extractDiagram, resolveMarkup, findAnime } from "../lib.mjs";
 import { parseMarkup, hasClass, descendants, isInside } from "./parse.mjs";
+import { ICON_LAYOUT, VOLUME_ICON_LAYOUT, planBoxIcons, planVolumeIcons, volumeIconSize } from "../interpreter.js";
 
 // What the interpreter and the app's helpers read from the stylesheet's classes, and what they call.
 export const REQUIRED_CLASSES = ["diagram", "diagram-log", "diagram-footer", "diagram-replay", "diagram-line", "diagram-line-static", "diagram-line-label", "diagram-hint", "diagram-clickable", "diagram-glow"];
@@ -88,6 +89,20 @@ export function checkMarkup(descriptor, html) {
       if (e.attrs.tabindex === undefined || e.attrs.role !== "button") warn("accessibility", `node ${n.name}`, 'a gesture node should have tabindex="0" and role="button" so a keyboard user can press it');
     }
     if (n.group && e.tag !== "g") warn("element", `node ${n.name}`, `marked group but is <${e.tag}>, not <g>`);
+    if (n.icons?.length) {
+      // The icons stand along the box's inside top edge and push the label down (core/descriptor.md section 3.5):
+      // say now, from the markup, whether the box is big enough, using the interpreter's own layout. Icon
+      // widths aren't known without the helpers, so each is taken as square.
+      const w = `node ${n.name} icons`, box = e.tag === "rect" ? e : [...descendants(e)].find((c) => c.tag === "rect");
+      const nums = box && ["x", "y", "width", "height"].map((a) => parseFloat(box.attrs[a]));
+      if (!box || nums.some((v) => !Number.isFinite(v))) { err("icons", w, "the node needs a <rect> with numeric x, y, width and height: the icons are placed against its inside top edge"); continue; }
+      const [x, y, width, height] = nums;
+      const lines = doc.all.filter((t) => t.tag === "text" && (hasClass(t, "diagram-label") || hasClass(t, "diagram-hint"))).map((t) => ({ t, x: parseFloat(t.attrs.x), y: parseFloat(t.attrs.y) }))
+        .filter((l) => l.x >= x && l.x <= x + width && l.y >= y && l.y <= y + height);
+      if (!lines.length) warn("icons", w, "no label inside the box: the icons are drawn, but there is no text to move down");
+      const plan = planBoxIcons({ x, y, width, height }, n.icons.map(() => ICON_LAYOUT.size), lines.map((l) => ({ y: l.y, fontSize: hasClass(l.t, "diagram-hint") ? ICON_LAYOUT.hintFontSize : ICON_LAYOUT.labelFontSize })));
+      if (!plan.fits) err("icons", w, `the box is too small for its icons and label: after the icons (${ICON_LAYOUT.size} tall) and the label moving down ${Math.round(plan.shift)}, ${Math.round(plan.bottomPadding)} units are left under the text (at least ${ICON_LAYOUT.padBottom} needed), and the row is ${Math.round(plan.rowWidth)} wide in a ${width}-wide box. Make the box taller or wider, or use fewer icons`);
+    }
   }
   for (const c of descriptor.channels ?? []) {
     const e = el(c.name, c.element, "channel");
@@ -118,6 +133,19 @@ export function checkMarkup(descriptor, html) {
   for (const v of descriptor.volumes ?? []) {
     const e = el(v.name, v.element, "volume"); if (!e) continue;
     if (e.tag !== "g") err("volume", `volume ${v.name}`, `a volume is moved by a transform, so it must be a <g>, not <${e.tag}>`);
+    if (v.icons?.length && e.tag === "g") {
+      // Icons stand at the left end of the volume's box with the label centered in the rest (core/descriptor.md
+      // section 3.5): say now whether the box is wide enough, using the interpreter's own layout. Each icon is
+      // taken as square, and the label's width is estimated from its text in the descriptor.
+      const w = `volume ${v.name} icons`, box = [...descendants(e)].find((c) => c.tag === "rect");
+      const nums = box && ["x", "y", "width", "height"].map((a) => parseFloat(box.attrs[a]));
+      if (!box || nums.some((n) => !Number.isFinite(n))) err("icons", w, "the volume needs a <rect> with numeric x, y, width and height: the icons are placed against its left end");
+      else {
+        const b = { x: nums[0], y: nums[1], width: nums[2], height: nums[3] }, size = volumeIconSize(b);
+        const plan = planVolumeIcons(b, v.icons.map(() => size), { chars: (v.label ?? "").length, fontSize: VOLUME_ICON_LAYOUT.fontSize });
+        if (!plan.fits) err("icons", w, `the box is too narrow for its icons and label "${v.label}": about ${Math.round(plan.textWidth)} units of text in ${Math.round(plan.available)} available. Make the box wider, or shorten the label`);
+      }
+    }
     if (!e.attrs.id.startsWith("dg-vol-")) err("volume", `volume ${v.name}`, `its id must start with "dg-vol-": the stylesheet's rule [id^="dg-vol-"] sets the transform origin that docking scales from`);
   }
   return out;
@@ -148,9 +176,11 @@ export function checkStylesheet(css, descriptor = {}) {
 }
 
 // The helpers file must export the three functions the interpreter is given.
-export function checkHelpers(js) {
+export function checkHelpers(js, descriptor) {
   const names = [...js.matchAll(/^export\s+(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]);
-  return REQUIRED_HELPERS.filter((n) => !names.includes(n)).map((n) => ({ level: "error", code: "helpers", where: n, message: `the helpers file must export ${n}` }));
+  // `createIconElement` draws the icons a node declares (`icons`); a descriptor with none doesn't need it
+  const required = [...(descriptor?.nodes ?? []), ...(descriptor?.volumes ?? [])].some((n) => n.icons?.length) ? [...REQUIRED_HELPERS, "createIconElement"] : REQUIRED_HELPERS;
+  return required.filter((n) => !names.includes(n)).map((n) => ({ level: "error", code: "helpers", where: n, message: `the helpers file must export ${n}` }));
 }
 
 // ---- CLI --------------------------------------------------------------------------------------
@@ -165,7 +195,7 @@ async function main() {
   const cssFile = cssFile0 ?? (app && path.join(app, "spa-server/public/shared.css")), helpersFile = helpersFile0 ?? (app && path.join(app, "spa-server/public/diagram-shared.js"));
   const found = checkMarkup(descriptor, fs.readFileSync(markupFile, "utf8"));
   if (cssFile) found.push(...checkStylesheet(fs.readFileSync(cssFile, "utf8"), descriptor));
-  if (helpersFile) found.push(...checkHelpers(fs.readFileSync(helpersFile, "utf8")));
+  if (helpersFile) found.push(...checkHelpers(fs.readFileSync(helpersFile, "utf8"), descriptor));
   for (const level of ["error", "warning"]) {
     const list = found.filter((f) => f.level === level); if (!list.length) continue;
     console.log(`\n${level.toUpperCase()} (${list.length})`);

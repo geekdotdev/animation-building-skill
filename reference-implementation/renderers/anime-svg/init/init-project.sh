@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: MIT
 #
 # Starts a project for animated diagrams: a new git repo holding a first diagram (copied from the skeleton
-# and renamed), anime.js, and an export.sh that runs the exporter with this project's paths. See
+# and renamed), anime.js, an export.sh that runs the exporter with this project's paths, and a sync-to-app.sh that
+# publishes the diagram to an application (the skill's sync/sync-to-app.sh, with DIAGRAM_SOURCE=local). See
 # AUTHORING-WORKFLOW.md, "Set up per project".
 #
 # Usage: init-project.sh <project-dir> [options]
@@ -188,6 +189,24 @@ EOF
 chmod +x export.sh
 echo "created export.sh"
 
+# ---- sync-to-app.sh ------------------------------------------------------------------------------------------------
+# The skill's own sync script (sync/sync-to-app.sh), copied and given this project's values. Its DIAGRAM_SOURCE says where
+# the drawing's source of truth is: "local" here, because the first diagram's drawing was just copied into this project
+# (the application's gateway page then holds a copy that --update-block refreshes). Set it to "app" by hand if the
+# application's page becomes the source instead. The application's folder is --app, if one was given; otherwise the script
+# asks for APP_REPO when it is first run.
+awk_value() { printf '%s' "$1" | sed -e 's/[\\&]/\\&/g'; }
+sync_value() { awk -v name="$1" -v value="$(awk_value "$2")" '$0 ~ "^" name "=" { sub(/:-[^}]*}/, ":-" value "}") } { print }'; }
+sed -n '1,$p' "$ANIME_SVG/sync/sync-to-app.sh" \
+  | sync_value SKILL_REPO "$(dq "$SKILL_REPO")" \
+  | sync_value APP_REPO "$(dq "$APP")" \
+  | sync_value DIAGRAM_SOURCE "local" \
+  | sync_value DIAGRAM "$LABEL" \
+  | sed '/^# Copyright (c) /d; /^# SPDX-License-Identifier: /d' > sync-to-app.sh
+chmod +x sync-to-app.sh
+grep -q "^DIAGRAM=\"\${DIAGRAM:-$LABEL}\"" sync-to-app.sh && grep -q '^DIAGRAM_SOURCE="${DIAGRAM_SOURCE:-local}"' sync-to-app.sh || die "could not set the diagram in sync-to-app.sh"
+echo "created sync-to-app.sh (DIAGRAM_SOURCE=local: this project's $LABEL/diagram.html is the source of the drawing)"
+
 # ---- a first check, so a wrong path shows up now ---------------------------------------------------------------------
 EFF_CSS="$CSS" EFF_HELPERS="$HELPERS"
 [ -n "$EFF_CSS" ] || { [ -n "$APP" ] && EFF_CSS="$APP/spa-server/public/shared.css" || EFF_CSS="$REF_IMPL/renderers/anime-svg/reference/diagram.css"; }
@@ -225,5 +244,7 @@ Next, in $PROJECT:
   1. Ask the agent to draft the descriptor in $LABEL/diagram.animation.js (see AUTHORING-WORKFLOW.md, step 1).
   2. Check it and try it (steps 4 and 5).
   3. ./export.sh   writes export/$LABEL-ghost-html-card.html (--profile standalone-page for a full page).
+  4. ./sync-to-app.sh   publishes the descriptor and drawing to your application (needs APP_REPO; DIAGRAM_SOURCE says whether this
+     project or the application's page is the source of the drawing).
 Nothing is committed yet: review, then commit.
 EOF

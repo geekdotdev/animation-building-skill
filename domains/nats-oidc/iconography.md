@@ -8,9 +8,9 @@ The reference helpers (`reference-implementation/renderers/anime-svg/reference/h
 
 The ontology defines the terms (**asset**, **node**, **channel**, **zone**, **effect**). This file is only the visual vocabulary.
 
-## Assets (things that travel a channel)
+## Icons
 
-Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the example diagrams whose script references the type today: **D** Static Demo, **2** Pre-Signed Zero Permission, **3** Role-Mapper, **4** Pure SPA Login, **5** BFF-Initiated SPA Login, **6** SPA Login with Keycloak DPoP.
+Defined in `ICONOGRAPHY`. Most are crawlers, things that travel a channel, drawn by `createCrawlerElement`. An icon can also stand still to annotate or decorate a node or a volume: `createIconElement(type, { x, y, size })` draws the same icon at the size you give (24 on a node's box, where the renderer puts it; 16 would fit a 22-unit-tall volume), without the `diagram-crawler` class, so it is visible when added and Reset leaves it alone. The key-pair icons below are meant for that second use. A node declares its static icons with `icons` in the descriptor (`core/descriptor.md` §3.5), and the renderer places them along the inside top edge of its box. "Used in" lists the example diagrams whose script references the type today: **D** Static Demo, **2** Pre-Signed Zero Permission, **3** Role-Mapper, **4** Pure SPA Login, **5** BFF-Initiated SPA Login, **6** SPA Login with Keycloak DPoP.
 
 | Asset | Visual | Meaning (what it depicts) | Used in |
 |---|---|---|---|
@@ -25,12 +25,19 @@ Defined in `ICONOGRAPHY`; drawn by `createCrawlerElement`. "Used in" lists the e
 | `zeroPermissionJwt` | hollow gold circle | A NATS user JWT carrying no permissions of its own | 2 4 |
 | `keySignature` | filled dark green circle `#1c7a30` | A signature made with the browser's own key: a DPoP proof (a JWT signed for one request) or the signed nonce at NATS connect. It vouches for what it travels with, so it is drawn as part of a composite crawler (with `tokenExchange`, with `accessToken`, or with `zeroPermissionJwt` and `accessToken`), never alone | 6 |
 | `zpJwtWithAccessToken` | gold linked keys `#d4a017`: two keys with interlocked bows, no ring | A zero-permission NATS user JWT with the OIDC access token inside it as a claim, encrypted so only auth-callout can read it. One signed artifact from mint time on | 5 |
+| `publicKeyHalf` | thick teal `#00838f` outline of a half-square with a semicircular notch cut into its inner edge, no fill | The public half of a key pair, the half that verifies. It completes with `privateKeyHalf`, whose bump fills the notch. The generic pair, for a diagram with only one | none yet |
+| `privateKeyHalf` | the same teal outline of a half-square with a semicircular bump on its inner edge | The private half of a key pair, the half that signs. It never leaves the service that holds it | none yet |
+| `keyPair` | both teal outlines side by side with a seam, bump seated in the notch | A freshly generated key pair, before the halves go their separate ways | none yet |
+| `browserPublicKeyHalf`, `browserPrivateKeyHalf`, `browserKeyPair` | the same three shapes in green `#2e7d32` | The browser's own key pair (the DPoP key in lab 6) | none yet |
+| `authAccountPublicKeyHalf`, `authAccountPrivateKeyHalf`, `authAccountKeyPair` | the same three shapes in blue `#1565c0` | The AUTH account's signing key pair: the broker verifies with the public half, auth-callout signs with the private half | none yet |
 | `authenticatedRequest` | filled teal square `#00838f` | A request carrying the caller's verified session or access token (spa-server relaying it to a back-end service) | 5 |
 | `publicKey` | filled teal circle `#00838f` | A browser-generated public key submitted for signing | 3 4 5 |
 | `pageServe` | hollow gray square `#888` | An HTML page being served | 2 3 4 5 |
 | `natsInfoRequest` | black closed padlock | The broker's NATS INFO frame, which carries the nonce to sign: nothing proven yet | D 2 3 4 5 |
 | `natsConnectRequest` | black open padlock, tilted, with a yellow key `#f1c40f` | A NATS CONNECT frame carrying a user JWT and the signed nonce: proof of possession presented | D 2 3 4 5 |
 | `natsOk` | green `OK` text `#27ae60` | The broker's `+OK` acceptance of a signed CONNECT | D 2 3 4 5 |
+
+**Key pairs.** The halves are drawn as outlines only, both in the same colour. Their shapes say which half is which (notch is public, bump is private), and the colour says which pair they belong to, so a diagram showing several pairs reads without a legend: the halves of one pair share a colour and fit together. Each pair has three assets under one prefix (`<pair>PublicKeyHalf`, `<pair>PrivateKeyHalf`, `<pair>KeyPair`). To add a pair, copy those three lines in `diagram-shared.js` and change the prefix and the stroke; the entries are written out rather than generated because the validator reads that table as text.
 
 **Defined but not used by any example diagram today:** `nonceChallenge` (light green circle), `signedNonceChallenge` (dark green circle), `authChallenge` (red X, a 401 challenge), `natsAuthFailed` (red X, the broker rejecting a CONNECT).
 

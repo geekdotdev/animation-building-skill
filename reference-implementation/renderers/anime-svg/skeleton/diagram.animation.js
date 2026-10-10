@@ -35,7 +35,7 @@ export default {
 
   nodes: [
     { name: 'config-source', element: 'dg-init-source', label: 'Config source', group: true },
-    { name: 'server', element: 'dg-box-server', label: 'Server' },
+    { name: 'server', element: 'dg-box-server', label: 'Server' }, // add icons: ['credential'] to stand a static icon along the top of the box; its label moves down (core/descriptor.md §3.5)
     { name: 'client', element: 'dg-node-client', label: 'Client', gesture: true, hint: 'Click to ask for a page' },
   ],
   channels: [

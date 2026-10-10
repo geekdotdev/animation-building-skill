@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parseMarkup } from "./parse.mjs";
 import { checkMarkup, checkStylesheet, checkHelpers, REQUIRED_CLASSES } from "./check.mjs";
+import { ICON_LAYOUT, planBoxIcons, planVolumeIcons } from "../interpreter.js";
 import baseDescriptor from "../skeleton/diagram.animation.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -135,6 +136,63 @@ t("checkHelpers: each required export must be present", () => {
   const ok = "export function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() {}\n";
   assert.deepEqual(checkHelpers(ok), []);
   assert.deepEqual(codes(checkHelpers(ok.replace("logDiagramTransition", "log"))), ["error:helpers"]);
+});
+
+// ---- icons on a box (core/descriptor.md section 3.5) ----
+const withIcons = (node, icons) => (d) => { d.nodes.find((n) => n.name === node).icons = icons; };
+t("planBoxIcons: one icon is centered along the inside top edge, and the label moves down to clear it", () => {
+  const plan = planBoxIcons({ x: 330, y: 27, width: 140, height: 60 }, [24], [{ y: 61, fontSize: 13 }]);
+  assert.deepEqual(plan.icons, [{ cx: 400, cy: 27 + ICON_LAYOUT.padTop + 12 }]);
+  assert.ok(Math.abs(plan.shift - (27 + 6 + 24 + 4 - (61 - 0.8 * 13))) < 1e-9);
+  assert.ok(plan.fits && plan.bottomPadding >= ICON_LAYOUT.padBottom);
+});
+t("planBoxIcons: a row of icons is centered as a whole, with the gap between them", () => {
+  const plan = planBoxIcons({ x: 330, y: 27, width: 140, height: 60 }, [24, 24], [{ y: 61, fontSize: 13 }]);
+  assert.deepEqual(plan.icons.map((i) => i.cx), [385, 415]);
+  assert.equal(plan.rowWidth, 54);
+});
+t("planBoxIcons: a label already low enough doesn't move, and a box with no text just takes the icons", () => {
+  assert.equal(planBoxIcons({ x: 0, y: 0, width: 150, height: 90 }, [24], [{ y: 70, fontSize: 13 }]).shift, 0);
+  const bare = planBoxIcons({ x: 0, y: 0, width: 150, height: 60 }, [24], []);
+  assert.deepEqual([bare.shift, bare.fits], [0, true]);
+});
+t("icons: a box with room for them and the label is clean", () => assert.deepEqual(check((h) => h, withIcons("server", ["credential"])), []));
+t("icons: a box too short to keep padding under the moved label is an error", () => {
+  assert.deepEqual(codes(check(replaceOnce('x="380" y="60" width="150" height="60"', 'x="380" y="60" width="150" height="46"'), withIcons("server", ["credential"]))), ["error:icons"]);
+});
+t("icons: a gesture node's hint moves with the label, so a 60-high box with a hint is too short", () => {
+  assert.deepEqual(codes(check((h) => h, withIcons("client", ["credential"]))), ["error:icons"]);
+});
+t("icons: a row wider than the box is an error", () => {
+  assert.deepEqual(codes(check((h) => h, withIcons("server", ["credential", "credential", "credential", "credential", "credential"]))), ["error:icons"]);
+});
+t("icons: a box with no label inside is a warning, not an error", () => {
+  const noLabel = replaceOnce('<text class="diagram-label" x="455" y="94" text-anchor="middle">Server</text>', "");
+  assert.deepEqual(codes(check(noLabel, withIcons("server", ["credential"]))), ["warning:icons"]);
+});
+// ---- icons on a volume ----
+const volIcons = (icons) => (d) => { d.volumes[0].icons = icons; };
+t("planVolumeIcons: the icon and the label are one group, a few units apart, centered in the box", () => {
+  const plan = planVolumeIcons({ x: 100, y: 200, width: 172, height: 22 }, [12.5], { chars: 24, fontSize: 8.5 });
+  const textWidth = 24 * 8.5 * 0.54, group = 12.5 + 3 + textWidth, start = 100 + (172 - group) / 2;
+  assert.equal(plan.size, 16);
+  assert.ok(Math.abs(plan.icons[0].cx - (start + 6.25)) < 1e-9 && plan.icons[0].cy === 211);
+  assert.ok(Math.abs(plan.textX - (start + 12.5 + 3 + textWidth / 2)) < 1e-9);
+  assert.equal(Math.round(plan.textX - plan.textWidth / 2 - (plan.icons[0].cx + 6.25)), 3, "3 units between the icon and the label");
+  assert.ok(plan.fits);
+});
+t("icons: a volume wide enough for its icon and label is clean", () => {
+  const widen = (h) => h.replace('x="35" y="105" width="110" height="22"', 'x="35" y="105" width="170" height="22"');
+  assert.deepEqual(check(widen, (d) => { volIcons(["credential"])(d); d.volumes[0].label = "server config"; }), []);
+});
+t("icons: a volume too narrow for its icon and label is an error", () => {
+  assert.deepEqual(codes(check((h) => h, (d) => { volIcons(["credential"])(d); d.volumes[0].label = "a much longer volume label than fits"; })), ["error:icons"]);
+});
+t("checkHelpers: createIconElement is required only when a node declares icons", () => {
+  const ok = "export function createCrawlerElement() {}\nexport function logDiagramTransition() {}\nexport function playVolumeDocking() {}\n";
+  assert.deepEqual(checkHelpers(ok, baseDescriptor), []);
+  assert.deepEqual(codes(checkHelpers(ok, { nodes: [{ name: "n", icons: ["x"] }] })), ["error:helpers"]);
+  assert.deepEqual(checkHelpers(ok + "export function createIconElement() {}\n", { nodes: [{ name: "n", icons: ["x"] }] }), []);
 });
 
 // The documented install is a link at ~/.claude/skills/diagram-animation. A main-guard comparing an unresolved

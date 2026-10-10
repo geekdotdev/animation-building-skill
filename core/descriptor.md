@@ -47,10 +47,10 @@ export default {
 |---|---|---|
 | `diagramLabel` | The diagram's id suffix (required). Every element's id is `<element>-<diagram-label>`, and tools read it from here, so there is no separate flag for it. | |
 | `markup` | Where the diagram's SVG lives: a path **relative to this file**, to a page or a file holding the diagram. The tools take the `<div class="diagram">` block from it, and it must meet the renderer's markup contract (for anime.js, `renderers/anime-svg/markup-contract.md`). A pointer only: the descriptor still holds no geometry, and the exporter leaves the path out of what it writes. Optional. | |
-| `nodes` | `{ name, label?, gesture?, showLocalStorage? }`. `gesture: true` makes it a gesture target and gives it a hint element. `showLocalStorage: { position, offset? }` displays that node's local storage (§3.2): `position` is `'overlay'` or `'adjacent'` (`adjacent` needs an `offset: { x, y }`; `overlay` must not have one). | node, local storage |
+| `nodes` | `{ name, label?, gesture?, showLocalStorage?, icons? }`. `gesture: true` makes it a gesture target and gives it a hint element. `showLocalStorage: { position, offset? }` displays that node's local storage (§3.2): `position` is `'overlay'` or `'adjacent'` (`adjacent` needs an `offset: { x, y }`; `overlay` must not have one). `icons: ['name', …]` places static icons along the inside top edge of the node's box and moves its label down to make room (§3.5). | node, local storage, icon |
 | `channels` | `{ name, a, b, duration, visibility, style?, label?, authenticated?, authenticatedBy? }`. `a` and `b` are node names, `duration` is milliseconds, `visibility` is `static` or `hidden`, `style` may be `mtls`. `authenticated: false` declares the channel's authentication as a tracked state (starts false, like `visibility` starts hidden); `authenticatedBy` names the datum whose `acknowledge` targets this channel — that's what sets it `true`. Both optional, and `authenticatedBy` is required whenever `authenticated` is declared. Declaring this doesn't gate anything by itself: nothing currently requires a move onto an `authenticated` channel to check it. | channel, line |
 | `zones` | `{ name, label, members: [names], padding }`. The zone's rectangle stays in the SVG. This declares what it must contain. A zone with no members is reusable as the attribution box (§3.3). | zone |
-| `volumes` | `{ name, label, consumer, offset }`. The start position stays in the SVG. The offset is the docking move. | metaphor asset |
+| `volumes` | `{ name, label, consumer, offset, icons? }`. The start position stays in the SVG. The offset is the docking move. `icons: ['name', …]` stand at the left end of the volume's box (§3.5). | metaphor asset |
 | `eventLog` | `{ element }`. Required. Declares the diagram's narration log as an explicit construct rather than an assumed part of the markup contract — `element` names it the same way every other construct is named, so the validator can check it resolves. Its id and class convention (`diagram-<diagram-label>-log`, class `diagram-log`) is fixed by the markup contract and doesn't vary by `element`'s value; geometry and position stay out of the descriptor, same as everywhere else — on a narrow viewport (600px or less) it moves out of its overlay position to sit below the diagram, a hard rule with no per-diagram opt-out. | event log |
 | `durations` | Named durations, optionally linked: `{ handshakeLeg: { link: 'channel:logging-client' } }`. | timebox, convergence |
 | `datums` | See §4. | datum |
@@ -203,6 +203,32 @@ settings: { gridLayer: { enabled: true, stepUserUnits: 50 } },
 - Drawn once when the interpreter is created, above the diagram's own shapes and below every crawler; it ignores the pointer, and Reset does not touch it.
 - The validator **warns** while `enabled` is `true`, so the grid is not published or exported by accident.
 
+## 3.5 Icons on a box or a volume
+
+A node can carry **static icons**: pictograms from the iconography that annotate or decorate it, such as which half of a key pair the service holds. They are not crawlers; they do not move, and Reset leaves them alone (`core/ontology.md`, *Icon*).
+
+```js
+nodes: [
+  { name: 'auth-callout', element: 'dg-box-authcallout', label: 'auth-callout', icons: ['authAccountPrivateKeyHalf'] },
+  { name: 'broker', element: 'dg-box-broker', label: 'NATS Broker', icons: ['authAccountPublicKeyHalf', 'browserKeyPair'] },
+],
+```
+
+`icons` is a non-empty list of asset names, each a key of the iconography. The renderer does the placing, so the drawing holds nothing for them:
+
+- **Along the inside top edge.** The icons are 24 units tall, 6 units below the box's top edge, in one row **centered on the box**, 6 units apart.
+- **The label moves down.** The box's label (and, on a gesture node, its hint) is shifted down just far enough to clear the icons with 4 units to spare. A label already low enough does not move.
+- **The box must still look right.** The text keeps at least 6 units of padding above the box's bottom edge, and the row keeps 6 units at each side. A box too small for that is an error from the markup check (`checkMarkup`, code `icons`), which uses the interpreter's own layout (`ICON_LAYOUT` and `planBoxIcons` in `interpreter.js`). A 60-unit-tall box holds a label and one row of icons; the same box with a hint does not, so make it taller.
+- **Only `.diagram-label` and `.diagram-hint` text** whose anchor lies inside the box moves. Other things inside it, such as the Init Containers box's keystores and volumes, stay where they are.
+- **The helpers must export `createIconElement(type, { x, y, size })`**, returning an element with a `place(x, y)` method and an `iconWidth`; the markup check requires it only when some node declares `icons`. The icon is drawn just above its box in paint order, below the text.
+- **A volume's `icons`** work the same way in spirit but not in place: a volume is about 22 units tall, so its icons go beside the label, not above it. The icons (as tall as the box less 3 units above and below: 16 on a 22-unit volume) and the label form **one group, 3 units apart**, and that group is **centered in the box**, vertically centered too. They are drawn inside the volume's own `<g>`, so docking carries them along. The box must be wide enough for the group with 4 units to spare at each end (the label's width is estimated at 0.54 of its 8.5-unit font size per character), or the markup check reports an error (`icons`): widen the box, or shorten the label.
+
+```js
+volumes: [
+  { name: 'auth-signing-key', element: 'dg-vol-authkey', label: 'AUTH account signing key', consumer: 'auth-callout', offset: { x: 87, y: -164 }, icons: ['authAccountPrivateKeyHalf'] },
+],
+```
+
 ## 4. Datums
 
 ```js
@@ -293,6 +319,7 @@ These are the checks of the validator (`reference-implementation/core/validator/
 | A move, divergence or arrival has exactly one of `asset` or `assets` (at least two names); `box` only with `assets` | composite crawler |
 | With `strict: true`, every move's and divergence's assets are in its origin's local storage (built from arrivals and `store` actions) | local storage |
 | The attribution box's `zone` (`settings.attributionMetadata.zone`) resolves, and it has no members | attribution metadata |
+| A node's `icons` is a non-empty list of asset names that exist in the iconography. The markup check (not the descriptor validator) then checks that the box has room: the label moved down still leaves padding, and the row fits across | icon |
 | `settings.gridLayer.enabled` is a boolean and `stepUserUnits`, if given, is a positive number; a **warning** while the grid layer is enabled (it is an authoring aid) | grid layer |
 | A descriptor still using a top-level `pace`, `modes`, `watermark` or `grid` is an **error** (`moved`) naming the `settings` key that replaced it | settings |
 | Names and durations resolve, and every asset exists in `ICONOGRAPHY` (`diagram-shared.js`; `domains/nats-oidc/iconography.md` is an example seed of it) | integrity |

@@ -19,7 +19,7 @@ Files: `spa-server/public/gateways/*-gateway.js` (one per diagram), `spa-server/
 | **Channel** | A `CHANNELS.chN = { path: '#dg-line-…', duration }` entry. Direction `normal` follows the path's drawing order (a → b), `reverse` runs it backwards. | path selector, per-channel duration, endpoints | "the connection between X and Y" |
 | **Line** | `<path class="diagram-line">`, opacity 0 until revealed. `.diagram-line-static` is always visible. Must be a single `<path>`, because crawlers follow it with `anime.path()`. | `d` (geometry), style class | "the line" |
 | **Path** | The line's `d` attribute, sampled by `anime.path(selector)` into `translateX`/`translateY`. A volume has no path element: it moves by a fixed offset. The `viewBox` must be zero-based or the helper miscomputes points. | geometry, or an (x, y) offset | "the route" |
-| **Asset** | An `ICONOGRAPHY` entry built by `createCrawlerElement(type)` and appended to the `<svg>`. See `domains/nats-oidc/iconography.md`. | type (shape, colours) | "the padlock", "the token" |
+| **Asset** | An `ICONOGRAPHY` entry built by `createCrawlerElement(type)` and appended to the `<svg>`, or, for a node's static `icons`, by `createIconElement(type, …)` and placed by the interpreter's `placeNodeIcons`. See `domains/nats-oidc/iconography.md`. | type (shape, colours) | "the padlock", "the token" |
 
 ## Things that happen
 

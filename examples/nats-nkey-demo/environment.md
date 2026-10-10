@@ -46,7 +46,7 @@ Convergent sequences (auth-callout and logging-client handshakes) should differ 
 
 ```js
 const r = (id) => document.getElementById(id).getBoundingClientRect();
-const zone = r('dg-zone-privatenet-<lab>'), m = r('dg-vol-authkeys-<lab>');
+const zone = r('dg-zone-privatenet-<lab>'), m = r('dg-vol-authkey-<lab>');
 ({ inside: m.left >= zone.left && m.right <= zone.right && m.bottom <= zone.bottom,
    gapToNeighbour: r('dg-vol-opjwt-<lab>').left - zone.right })
 ```

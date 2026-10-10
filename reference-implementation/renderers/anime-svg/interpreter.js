@@ -46,8 +46,90 @@
 // Class and helper names are the example project's (`diagram-glow`, `diagram-clickable`,
 // `.diagram-hint`, `#diagram-<diagram-label>-log`, `#diagram-<diagram-label>-replay`).
 
+// ---- icons on a box (core/descriptor.md section 3.5) --------------------------------------------------------
+// A node's `icons` stand still along the inside top edge of its box, in a row centered on the box. The box's label
+// (and hint) are shifted down to make room, and must still leave padding under the text. This is the one place
+// the numbers live: the interpreter uses it to draw, and markup/check.mjs uses it to tell an author, before
+// anything runs, that a box is too small. Pure, so it can be tested without a DOM.
+//   box: { x, y, width, height }.  widths: each icon's width at ICON_LAYOUT.size.
+//   texts: the label/hint lines inside the box, each { y (baseline), fontSize }.
+// Returns { icons: [{ cx, cy }], shift (how far every text line moves down), bottomPadding, rowWidth, fits }.
+export const ICON_LAYOUT = {
+  size: 24,          // an icon's height in diagram units
+  padTop: 6,         // from the box's inside top edge to the icons
+  gap: 6,            // between icons in the row
+  gapBelow: 4,       // from the icons to the top of the text beneath them
+  padBottom: 6,      // the least that must remain between the text's bottom and the box's bottom
+  padSide: 6,        // the least between the row's ends and the box's sides
+  labelFontSize: 13, // what the label and hint are assumed to measure when the real size isn't known
+  hintFontSize: 10,
+  ascent: 0.8,       // a text line spans y - ascent*fontSize to y + descent*fontSize
+  descent: 0.25,
+};
+export function planBoxIcons(box, widths, texts = []) {
+  const L = ICON_LAYOUT;
+  const rowWidth = widths.reduce((a, b) => a + b, 0) + L.gap * Math.max(0, widths.length - 1);
+  let x = box.x + (box.width - rowWidth) / 2;
+  const cy = box.y + L.padTop + L.size / 2;
+  const icons = widths.map((w) => { const c = { cx: x + w / 2, cy }; x += w + L.gap; return c; });
+  let shift = 0, bottomPadding = box.height;
+  if (texts.length) {
+    const top = Math.min(...texts.map((t) => t.y - L.ascent * t.fontSize));
+    shift = Math.max(0, box.y + L.padTop + L.size + L.gapBelow - top);
+    bottomPadding = box.y + box.height - Math.max(...texts.map((t) => t.y + L.descent * t.fontSize + shift));
+  }
+  return { icons, shift, bottomPadding, rowWidth, fits: bottomPadding >= L.padBottom && rowWidth <= box.width - 2 * L.padSide };
+}
+
+// A volume is only about 22 units tall, so its icons don't go along the top edge. The icons and the volume's label
+// form one group, the icons first and the label a few units after them, and that group is centered in the box. The
+// icons are as tall as the box less a little margin (16 on a 22-unit volume), and the box must be wide enough for
+// the whole group.
+//   box: { x, y, width, height }.  widths: each icon's width at `volumeIconSize(box)`.
+//   text: { chars, fontSize } of the label (its width is estimated, as sans-serif text at that size).
+// Returns { size, icons: [{ cx, cy }], textX (the label's center), available, textWidth, fits }.
+export const VOLUME_ICON_LAYOUT = {
+  padV: 3,          // above and below the icons
+  padLeft: 4,       // the least between the box's left edge and the group
+  padRight: 4,      // the least between the group and the box's right edge
+  gap: 3,           // between icons, and between the last icon and the label
+  charWidth: 0.54,  // an average character of the label is this many font sizes wide (0.53 to 0.55 measured on the example labels)
+  fontSize: 8.5,    // the label's size in the stylesheet, when the real one isn't known
+};
+export const volumeIconSize = (box) => box.height - 2 * VOLUME_ICON_LAYOUT.padV;
+export function planVolumeIcons(box, widths, text) {
+  const V = VOLUME_ICON_LAYOUT, size = volumeIconSize(box);
+  const iconsWidth = widths.reduce((a, b) => a + b, 0) + V.gap * Math.max(0, widths.length - 1);
+  const textWidth = text.chars * text.fontSize * V.charWidth;
+  let x = box.x + Math.max(V.padLeft, (box.width - (iconsWidth + V.gap + textWidth)) / 2);
+  const cy = box.y + box.height / 2;
+  const icons = widths.map((w) => { const c = { cx: x + w / 2, cy }; x += w + V.gap; return c; });
+  const available = box.width - V.padLeft - V.padRight - iconsWidth - V.gap; // x is now where the label starts
+  return { size, icons, textX: x + textWidth / 2, available, textWidth, fits: textWidth <= available };
+}
+
+// Draws `types` as static icons inside a volume's <g>, one group with its label, centered in the box. The
+// interpreter calls this for a descriptor volume's `icons`; a hand-written diagram script (one that does not use
+// the interpreter) can call it directly. Returns the plan, or null if the <g> has no <rect> and <text>.
+export function placeIconsOnVolume(g, types, createIconElement, name = 'volume') {
+  const rect = g?.querySelector('rect'), label = g?.querySelector('text');
+  if (!rect || !label) { console.warn(`${name} has icons but its <g> has no <rect> and <text>: none drawn`); return null; }
+  const num = (e, a) => parseFloat(e.getAttribute(a));
+  const box = { x: num(rect, 'x'), y: num(rect, 'y'), width: num(rect, 'width'), height: num(rect, 'height') };
+  const icons = types.map((type) => createIconElement(type, { size: volumeIconSize(box) }));
+  const plan = planVolumeIcons(box, icons.map((i) => i.iconWidth ?? volumeIconSize(box)), { chars: (label.textContent || '').length, fontSize: VOLUME_ICON_LAYOUT.fontSize });
+  if (!plan.fits) console.warn(`${name}: its box is too narrow for its icons and label (needs about ${Math.round(plan.textWidth)}, has ${Math.round(plan.available)})`);
+  label.setAttribute('x', String(plan.textX));
+  icons.forEach((icon, i) => {
+    icon.place(plan.icons[i].cx, plan.icons[i].cy);
+    icon.setAttribute('pointer-events', 'none');
+    g.appendChild(icon);
+  });
+  return plan;
+}
+
 export function createInterpreter(d, env) {
-  const { anime, createCrawlerElement, logDiagramTransition, playVolumeDocking, onEvent = () => {} } = env;
+  const { anime, createCrawlerElement, createIconElement, logDiagramTransition, playVolumeDocking, onEvent = () => {} } = env;
   const doc = env.document ?? document;
   const LABEL = d.diagramLabel;
   const id = (element) => `#${element}-${LABEL}`;
@@ -443,6 +525,47 @@ export function createInterpreter(d, env) {
     }
   }
 
+  // ---- icons on a box (core/descriptor.md section 3.5) ---------------------------------------------------------
+  // Drawn once, here, because they are static: no crawler class, so Reset leaves them. The geometry comes from the
+  // SVG (the box's rect, the label's position) and the rules from planBoxIcons above.
+  function placeNodeIcons() {
+    for (const n of d.nodes) {
+      if (!n.icons?.length) continue;
+      if (typeof createIconElement !== 'function') { console.warn(`node ${n.name} has icons but the helpers have no createIconElement: no icons drawn`); return; }
+      const el = doc.querySelector(id(n.element));
+      const rect = el?.tagName === 'rect' ? el : el?.querySelector('rect');
+      if (!rect) { console.warn(`node ${n.name} has icons but no box <rect> was found: none drawn`); continue; }
+      const num = (e, a) => parseFloat(e.getAttribute(a));
+      const box = { x: num(rect, 'x'), y: num(rect, 'y'), width: num(rect, 'width'), height: num(rect, 'height') };
+      const lines = [...doc.querySelectorAll(`${svgSel} text.diagram-label, ${svgSel} text.diagram-hint`)]
+        .filter((t) => { const tx = num(t, 'x'), ty = num(t, 'y'); return tx >= box.x && tx <= box.x + box.width && ty >= box.y && ty <= box.y + box.height; });
+      const icons = n.icons.map((type) => createIconElement(type, { size: ICON_LAYOUT.size }));
+      const plan = planBoxIcons(box, icons.map((i) => i.iconWidth ?? ICON_LAYOUT.size),
+        lines.map((t) => ({ y: num(t, 'y'), fontSize: t.classList.contains('diagram-hint') ? ICON_LAYOUT.hintFontSize : ICON_LAYOUT.labelFontSize })));
+      if (!plan.fits) console.warn(`node ${n.name}: its box is too small for its icons and label (${Math.round(plan.bottomPadding)} units left under the text, ${Math.round(plan.rowWidth)} wide row in ${box.width})`);
+      for (const t of lines) t.setAttribute('y', String(num(t, 'y') + plan.shift));
+      // paint order: just above the box, below its text and everything drawn after it
+      let anchor = rect;
+      icons.forEach((icon, i) => {
+        icon.place(plan.icons[i].cx, plan.icons[i].cy);
+        icon.setAttribute('pointer-events', 'none');
+        icon.setAttribute('data-icon-of', n.name);
+        anchor.parentNode.insertBefore(icon, anchor.nextSibling);
+        anchor = icon;
+      });
+    }
+  }
+
+  // Icons on a volume (core/descriptor.md section 3.5): the icons and the label form one group, centered in the box.
+  // They are children of the volume's <g>, so docking carries them along.
+  function placeVolumeIcons() {
+    for (const v of d.volumes) {
+      if (!v.icons?.length) continue;
+      if (typeof createIconElement !== 'function') { console.warn(`volume ${v.name} has icons but the helpers have no createIconElement: no icons drawn`); return; }
+      placeIconsOnVolume(doc.querySelector(id(v.element)), v.icons, createIconElement, `volume ${v.name}`);
+    }
+  }
+
   // ---- grid layer (core/descriptor.md section 3.4) ------------------------------------
   // An authoring aid, not part of the diagram: `settings.gridLayer: { enabled: true, stepUserUnits: 50 }` draws a line every `stepUserUnits`
   // user units across the whole canvas, numbered with the user-space coordinate (so a number read off the
@@ -532,6 +655,8 @@ export function createInterpreter(d, env) {
   // ---- wiring (once) ---------------------------------------------------------
   for (const n of d.nodes) if (n.gesture) doc.querySelector(id(n.element)).addEventListener('click', () => onClick(n.name));
   doc.getElementById(`diagram-${LABEL}-replay`)?.addEventListener('click', reset);
+  placeNodeIcons();
+  placeVolumeIcons();
   drawGrid();
   // the mode toggle, beside Replay, only when the descriptor allows the viewer to switch
   let toggleBox = null;

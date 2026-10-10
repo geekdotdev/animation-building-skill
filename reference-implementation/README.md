@@ -8,7 +8,8 @@ Runnable code that implements what the prose layers specify. It is a **reference
 | `renderers/anime-svg/` | the format and anime.js v3 with inline SVG: the shared interpreter that replaces the per-diagram `beadArrived` chains | written and checked against example diagram 5 (`test/README.md`). Lab 5 of the example project now runs on it; the other example diagrams have not been switched over. |
 | `renderers/anime-svg/reference/` | the markup contract §4 | a stylesheet and the three helper functions with a small generic iconography, so a diagram runs with nothing from the example project (9 tests). anime.js is passed in. |
 | `renderers/anime-svg/markup/` and `skeleton/` | the markup contract (`renderers/anime-svg/markup-contract.md`) | `check.mjs` checks a diagram file, its stylesheet and helpers against it (20 tests). `skeleton/` is a diagram file and descriptor to copy, and it runs. |
-| `renderers/anime-svg/init/` | the authoring workflow's per-project setup | `init-project.sh` makes a new animation project (the skill's top-level `init-project.sh` is a short entry point that forwards here; the logic lives with the renderer because it copies that renderer's skeleton and writes an `export.sh` for its exporter): git repo, anime.js, the renamed skeleton, and an `export.sh` with the right paths. `test.mjs` runs it into temp folders (14 tests). |
+| `renderers/anime-svg/sync/` | the authoring workflow's step 8 (publishing to an application) | `sync-to-app.sh`, the sync script `init-project.sh` copies into each new project: checks, copies the descriptor and the interpreter, and keeps the application's diagram block in step. Its `DIAGRAM_SOURCE` setting is `local` (this project's `diagram.html` is the source, the application holds a copy) or `app` (the application's page is the source and is only checked). `test.mjs` runs it against temp projects and applications (7 tests). |
+| `renderers/anime-svg/init/` | the authoring workflow's per-project setup | `init-project.sh` makes a new animation project (the skill's top-level `init-project.sh` is a short entry point that forwards here; the logic lives with the renderer because it copies that renderer's skeleton and writes an `export.sh` for its exporter): git repo, anime.js, the renamed skeleton, an `export.sh` with the right paths, and a `sync-to-app.sh` (the `sync/` script, with `DIAGRAM_SOURCE=local` and this project's values set, license notice scrubbed). `test.mjs` runs it into temp folders (16 tests). |
 | `renderers/anime-svg/export/` | the interpreter, a descriptor and a target profile | the exporter: writes one self-contained file for a delivery target. Written, 36 tests, and its output loaded in a browser (`export/README.md`). |
 
 Anything renderer-specific belongs under `renderers/<name>/`, and nothing under `core/` may import from there.
@@ -32,10 +33,10 @@ node test.mjs
 
 ## `renderers/anime-svg/`
 
-`interpreter.js` reads a descriptor and animates a diagram whose markup already exists. It is one browser ES module with no imports: anime.js and the project's helpers (`createCrawlerElement`, `logDiagramTransition`, `playVolumeDocking`) are passed in.
+`interpreter.js` reads a descriptor and animates a diagram whose markup already exists. It is one browser ES module with no imports: anime.js and the project's helpers (`createCrawlerElement`, `logDiagramTransition`, `playVolumeDocking`, and `createIconElement` when a node declares `icons`) are passed in.
 
 ```js
-const run = createInterpreter(descriptor, { anime, createCrawlerElement, logDiagramTransition, playVolumeDocking });
+const run = createInterpreter(descriptor, { anime, createCrawlerElement, createIconElement, logDiagramTransition, playVolumeDocking });
 run.start();   // Replay calls run.reset()
 ```
 

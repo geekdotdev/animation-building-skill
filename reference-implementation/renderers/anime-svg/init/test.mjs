@@ -51,6 +51,14 @@ t("creates a git repo, a renamed first diagram, a module package.json and a .git
   assert.ok(!ignored(PROJ, "export/login-flow-ghost-html-card.html"), "exports must not be ignored");
 });
 
+t("the generated sync-to-app.sh is the skill's, with DIAGRAM_SOURCE=local and this project's diagram, and is not git-ignored", () => {
+  const sync = read(PROJ, "sync-to-app.sh");
+  assert.match(sync, /^DIAGRAM_SOURCE="\$\{DIAGRAM_SOURCE:-local\}"/m);
+  assert.match(sync, /^DIAGRAM="\$\{DIAGRAM:-login-flow\}"/m);
+  assert.ok(!ignored(PROJ, "sync-to-app.sh"), "sync-to-app.sh must not be ignored");
+  assert.ok(fs.statSync(path.join(PROJ, "sync-to-app.sh")).mode & 0o100, "executable");
+});
+
 t("the generated export.sh creates export/ if it is missing and writes the export, with --check and --profile working", () => {
   const exportDir = path.join(PROJ, "export");
   assert.ok(!fs.existsSync(exportDir), "init should not have created export/");

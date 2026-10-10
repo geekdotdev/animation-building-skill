@@ -20,7 +20,11 @@ const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
 const assetNames = [...helpers.matchAll(/^  (\w+): \{ shape:/gm)].map((m) => m[1]);
 
 t("the stylesheet defines every class the contract requires, and the volume rule", () => assert.deepEqual(checkStylesheet(css, skeleton), []));
-t("the helpers export the three functions the interpreter is given", () => assert.deepEqual(checkHelpers(helpers), []));
+t("the helpers export the three functions the interpreter is given, and createIconElement for a node's icons", () => {
+  assert.deepEqual(checkHelpers(helpers), []);
+  assert.deepEqual(checkHelpers(helpers, { nodes: [{ name: "n", icons: ["ok"] }] }), []);
+  assert.match(helpers, /^export function createIconElement/m);
+});
 t(".diagram-line-static comes after .diagram-line (equal specificity: order decides)", () => {
   const rules = bare.split("}").map((r) => r.trim());
   const at = (sel) => rules.findIndex((r) => r.startsWith(sel + " {"));

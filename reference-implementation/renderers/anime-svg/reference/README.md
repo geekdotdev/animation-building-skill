@@ -5,7 +5,7 @@ The two files a diagram needs besides its markup and its descriptor, written to 
 | File | What it is |
 |---|---|
 | `diagram.css` | A stylesheet that stands alone: no host page, wrapper or theme. The rules marked `BEHAVIOR` are the contract (hidden lines, labels and crawlers, static lines, the volume transform origin, the glow, the pressable node). The rest is a plain look you can change. |
-| `helpers.js` | `createCrawlerElement`, `logDiagramTransition`, `playVolumeDocking`, and a small generic `ICONOGRAPHY`: `request`, `response`, `message`, `credential`, `redirect`, `exchange`, `ok`, `error`. |
+| `helpers.js` | `createCrawlerElement`, `createIconElement`, `logDiagramTransition`, `playVolumeDocking`, and a small generic `ICONOGRAPHY`: `request`, `response`, `message`, `credential`, `redirect`, `exchange`, `ok`, `error`. |
 | `test.mjs` | Checks that both still meet the contract and stay in step with the skeleton. `node test.mjs` |
 
 **Not included: anime.js.** It is a third-party library, so pass its `anime.es.js` with `--anime` (or find it under an install's `node_modules`). `helpers.js` imports it as `/vendor/animejs/anime.es.js`, a single line the test-page builder and the exporter both understand: the builder serves it at that path, and the exporter removes the line and inlines or imports anime.js itself.

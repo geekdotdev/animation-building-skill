@@ -81,6 +81,7 @@ So the file needn't and mustn't set these itself:
 
 **Helpers the interpreter is given** (`checkHelpers`, errors if not exported by the helpers file):
 - `createCrawlerElement(type)` returns the SVG element for the asset named `type` (a key of the application's iconography), ready to append, with class `diagram-crawler`.
+- `createIconElement(type, { x, y, size })` returns a static icon for the asset named `type` (the same shapes as the crawlers, without the `diagram-crawler` class), `size` units tall and centered on (x, y). It has a `place(x, y)` method that moves it and an `iconWidth` (its width at that size). **Required only when some node declares `icons`** (core/descriptor.md §3.5).
 - `logDiagramTransition(logSelector, message)` appends a line to the log and scrolls it into view.
 - `playVolumeDocking(volumeSelectors, deltas, onComplete, duration)` moves each volume by `deltas[i]` (`{ x, y }`) and calls `onComplete` when all have arrived. `duration` (ms) is the descriptor's dock duration, and a helper that ignores it keeps its own.
 

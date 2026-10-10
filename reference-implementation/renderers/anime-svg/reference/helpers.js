@@ -71,6 +71,26 @@ export function createCrawlerElement(type) {
   return el;
 }
 
+// An icon standing still, to annotate a node (the descriptor's node `icons`, core/descriptor.md section 3.5). The
+// same shapes as the crawlers, but without the `diagram-crawler` class, so it is visible when added and Reset
+// leaves it alone. `size` is its height in diagram units. `place(x, y)` centres it on a point and `iconWidth` is
+// its width at that size, so the interpreter can lay a row of them out.
+const ICON_DESIGN_SIZE = { circle: [12, 12], triangle: [13, 12], square: [12, 12], x: [12, 12], text: [14, 12] };
+export function createIconElement(type, { x = 0, y = 0, size = 24 } = {}) {
+  const def = ICONOGRAPHY[type];
+  if (!def) throw new Error(`unknown asset "${type}" (known: ${Object.keys(ICONOGRAPHY).join(', ')})`);
+  const [w, h] = ICON_DESIGN_SIZE[def.shape] || [12, 12];
+  const k = size / h;
+  const wrapper = document.createElementNS(SVG_NS, 'g');
+  wrapper.setAttribute('class', 'diagram-icon');
+  wrapper.appendChild(createCrawlerElement(type));
+  wrapper.firstChild.removeAttribute('class');
+  wrapper.iconWidth = w * k;
+  wrapper.place = (nx, ny) => wrapper.setAttribute('transform', `translate(${nx},${ny}) scale(${k})`);
+  wrapper.place(x, y);
+  return wrapper;
+}
+
 // Appends a line to the diagram's event log and scrolls it into view. The text is set as text, not markup, so a
 // narration line can't inject HTML. The log keeps its last DIAGRAM_LOG_MAX_LINES lines.
 export function logDiagramTransition(logSelector, message) {

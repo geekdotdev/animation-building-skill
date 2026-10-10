@@ -59,6 +59,7 @@ The folder can be new, empty, or hold only a `.git` folder: clone the new, empty
 | `node_modules/animejs` | anime.js 3.2.2, which isn't included with the skill. Skipped with `--no-install`, `--anime` or `--app`. |
 | `<label>/diagram.html`, `diagram.animation.js` | The skeleton, with the label already in every id and in `diagramLabel`. Step 3 below is done for the first diagram. |
 | `export.sh` | A script that runs the export (step 7) with the right paths and arguments already filled in. |
+| `sync-to-app.sh` | A script that publishes the diagram to your application (step 8): it runs the checks, copies the descriptor and the interpreter, and keeps the application's copy of the diagram block in step. A setting at its top, `DIAGRAM_SOURCE`, says which side is the source of the drawing: `local` (set by init, because the drawing was just copied into this project) or `app` (your application's page is the source and is only checked). It needs `APP_REPO`, set from `--app` if you gave one. |
 
 Then it runs the validator and the markup check on the skeleton as a smoke test. The `REPLACE:` warnings it prints are the placeholders you're about to fill in. If you gave your own helpers (or `--app`), it also reports errors for the skeleton's placeholder assets (`request`, `response`, `credential`), which only the reference iconography defines. The script says so and doesn't treat it as a wrong path: they go away when the real sequence replaces the placeholder, using your helpers' assets.
 
@@ -190,11 +191,11 @@ Instead of (or as well as) an export, run the diagram inside the application its
 
    ```js
    import anime from '/vendor/animejs/anime.es.js';
-   import { createCrawlerElement, logDiagramTransition, playVolumeDocking } from '/diagram-shared.js';
+   import { createCrawlerElement, createIconElement, logDiagramTransition, playVolumeDocking } from '/diagram-shared.js';
    import { createInterpreter } from '/interpreter.js';
    import descriptor from './my-diagram.descriptor.js';
 
-   createInterpreter(descriptor, { anime, createCrawlerElement, logDiagramTransition, playVolumeDocking }).start();
+   createInterpreter(descriptor, { anime, createCrawlerElement, createIconElement, logDiagramTransition, playVolumeDocking }).start();
    ```
 
    Adjust the import paths to where your server serves each file. The interpreter wires the Replay button to its own `reset()`.
@@ -206,7 +207,7 @@ The descriptor's `markup` path is read only by the Node tools, never by the brow
 The animation project is the source of truth. Everything in the application, and every export, is a copy:
 
 - Change the descriptor or the drawing in the animation project, then re-run step 4.
-- Copy the descriptor again (and the diagram block, if the drawing changed). Never edit the copy: the next copy overwrites it.
+- Copy the descriptor again (and the diagram block, if the drawing changed). Never edit the copy: the next copy overwrites it. `./sync-to-app.sh` does the copying and the checks, and `./sync-to-app.sh --update-block` refreshes the application's diagram block. This holds when `DIAGRAM_SOURCE=local` (init's setting). Set it to `app` if the application's page is the source of the drawing instead: the script then checks that page and copies the descriptor, and `--update-block` is refused.
 - Refresh the vendored `interpreter.js` when the skill's has changed.
 - Regenerate exports with `./export.sh`, and use `./export.sh --check` (or `export.mjs --check`) to find the ones that have gone stale.
 - A change that adds or renames an element, or moves a node or its docked volume, needs the drawing and the descriptor changed together. The descriptor's dock offsets are the one geometry it holds.
