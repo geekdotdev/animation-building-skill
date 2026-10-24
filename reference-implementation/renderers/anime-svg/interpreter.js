@@ -490,10 +490,10 @@ export function createInterpreter(d, env) {
     const width = parseFloat(rect.getAttribute('width')), height = parseFloat(rect.getAttribute('height'));
     const author = w.author;
     const lines = [];
-    // "Coordinated by Claude": Claude authors within a fixed, developer-defined format and rule set
+    // "Built with Claude and the animation-building-skill": Claude authors within a fixed, developer-defined format and rule set
     // (the ontology, the validator, this interpreter's own contract) — not a free-form "AI-generated"
     // claim, since the process and its constraints are the skill's, not the model's own invention.
-    if (w.repo !== false) lines.push({ text: 'Coordinated by Claude, built with diagram-animation skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
+    if (w.repo !== false) lines.push({ text: 'Built with Claude and the animation-building-skill', href: 'https://github.com/geekdotdev/animation-building-skill' });
     if (author) lines.push({ text: `Authored By: ${author}`, href: w.website });
     attributionGroup = doc.createElementNS(SVGNS, 'g');
     attributionGroup.setAttribute('class', 'diagram-watermark');
